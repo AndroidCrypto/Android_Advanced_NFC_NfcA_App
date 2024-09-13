@@ -155,8 +155,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             }
         }
 
-
-
         // final output
         String finalOutput = output;
         runOnUiThread(() -> {
