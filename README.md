@@ -3,7 +3,7 @@
 This is a simple app showing how to detect and read some data from an NFC tag tapped to the Android's NFC reader.
 
 As there are a lot of questions on Stackoverflow.com that use an **Intent-based** NFC detection system I'm showing here how to use the more 
-modern **Reader Mode** NFC communication.
+modern **Reader Mode** for NFC communication.
 
 This is from an answer by *[Andrew](https://stackoverflow.com/users/2373819/andrew)* regarding the two modes:
 
