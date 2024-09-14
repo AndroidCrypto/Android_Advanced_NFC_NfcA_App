@@ -153,8 +153,9 @@ if (ndef == null) {
 }                                                                                                    
 ```
 
+## Screen after reading a tag with an NDEF message
 
-`f`: 
+![Screen of the Main](screenshot/small/app_home_01.png)
 
 ## Example outputs for some tag types
 
