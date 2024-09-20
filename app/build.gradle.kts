@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "de.androidcrypto.androidbasicnfcreader"
+    namespace = "de.androidcrypto.android_advanced_nfc_nfca_app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "de.androidcrypto.androidbasicnfcreader"
+        applicationId = "de.androidcrypto.android_advanced_nfc_nfca_app"
         minSdk = 21
         targetSdk = 34
         versionCode = 1

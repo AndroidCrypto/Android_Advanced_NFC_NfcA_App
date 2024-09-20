@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AndroidBasicNfcReader"
+rootProject.name = "Android_Advanced_NFC_NfcA_App"
 include(":app")

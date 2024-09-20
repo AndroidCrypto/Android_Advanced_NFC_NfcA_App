@@ -1,4 +1,4 @@
-package de.androidcrypto.androidbasicnfcreader;
+package de.androidcrypto.android_advanced_nfc_nfca_app;
 
 import org.junit.Test;
 

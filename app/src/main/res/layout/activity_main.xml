@@ -19,7 +19,7 @@
             android:padding="10dp"
             android:textSize="16sp"
             android:fontFamily="monospace"
-            android:text="Please tap a tag to the reader"
+            android:text="Android Advanced NFC NfcA App\n\nPlease tap a tag to the reader"
 />
 
     </ScrollView>

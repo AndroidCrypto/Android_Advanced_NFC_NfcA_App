@@ -1,4 +1,163 @@
-# Android Basic NFC Reader
+# Android Advanced NFC NfcA App
+
+## data sheets of the described NFC tags
+
+- NXP NTAG21x tags (NTAG213, NTAG215 and NTAG216): https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf
+- NXP MIFARE DESFire EV3 short data sheet (MF3D_H_X3_SDS): https://www.nxp.com/docs/en/data-sheet/MF3D_H_X3_SDS.pdf
+- Philips mifare DESFire MF3 IC D40 (M075031, outdated but newer DESFire tags are backwards compatible): https://neteril.org/files/M075031_desfire.pdf
+- MIFARE type identification procedure (AN10833): https://www.nxp.com/docs/en/application-note/AN10833.pdf
+
+## NTAG21x command overview
+
+Using the NTAG21x data sheet, the command overview is starting from page 32 onwards. As most of the 
+commands are already done by Android's OS I'm focusing on the user commands we are going to run. The 
+following descriptions are copy & pasted from the data sheet, all copyrights are going to NXP Semiconductors:
+
+### Get Version Command 0x60h
+
+The GET_VERSION command is used to retrieve information on the NTAG family, the product version, storage 
+size and other product data required to identify the specific NTAG21x.
+
+This command is also available on other NTAG products to have a common way of identifying products 
+across platforms and evolution steps. The GET_VERSION command has no arguments and replies the version 
+information for the specific NTAG21x type.
+
+**Response of the tag:**
+
+The tag is responding an eight bytes long array with 8 data fields:
+- byte 00: a fixed, static header '0x00h'
+- byte 01: vendor ID of the manufacturer of the tag. A tag from NXP Semiconductors has '0x04h' as identifier
+- byte 02: product type of the tag. The NTAG21x family gives '0x04h'
+- byte 03: product subtype of the tag. The value is depending on the sensitivity of the tag. A "card type" 
+tag has 50pF gives the value '0x02h'
+- byte 04: major product version: For NTAG21x tags it is '0x01h'
+- byte 05: minor product version: For NTAG21x tags it is '0x01h' meaning Version 0
+- byte 06: storage size: see explanation below. An NTAG213 gives '0x0Fh', the NTAG215 returns '0x11h' 
+and the NTAG216 is returning '0x13h'
+- byte 07: protocol type: An NTAG21x tag returns '0x03h' as the tag is ISO/IEC 14443-3 compliant.
+
+Storage size explanations:
+
+The most significant 7 bits of the storage size byte are interpreted as a unsigned integer value n. 
+As a result, it codes the total available user memory size as 2n. If the least significant bit is 0b, 
+the user memory size is exactly 2n. If the least significant bit is 1b, the user memory size is between 
+2n and 2n+1.
+
+The user memory for NTAG213 is 144 bytes. This memory size is between 128bytes and 256 bytes. Therefore, 
+the most significant 7 bits of the value 0Fh, are interpreted as 7d and the least significant bit is 1b.
+
+The user memory for NTAG215 is 504 bytes. This memory size is between 256 bytes and 512 bytes. Therefore, 
+the most significant 7 bits of the value 11h, are interpreted as 8d and the least significant bit is 1b.
+
+The user memory for NTAG216 is 888 bytes. This memory size is between 512 bytes and 1024 bytes. Therefore, 
+the most significant 7 bits of the value 13h, are interpreted as 9d and the least significant bit is 1b.
+
+Example response: *0x0004040201001303h* gives this information:
+
+```plaintext
+Version data dump (8 bytes)
+fixedHeader: 0
+hardwareVendorId: 4
+hardwareType: 4
+hardwareSubtype: 2
+hardwareVersionMajor: 1
+hardwareVersionMinor: 0
+hardwareStorageSize: 19
+hardwareProtocol: 3
+Storage size: >512 bytes
+```
+
+### Read Command 0x30h
+
+The READ command requires a start page address, and **returns the 16 bytes of four NTAG21x pages**. For example, 
+if address (Addr) is 03h then pages 03h, 04h, 05h, 06h are returned. Special conditions apply if the READ 
+command address is near the end of the accessible memory area. The special conditions also apply if at 
+least part of the addressed pages is within a password protected area.
+
+In the initial state of NTAG21x, all memory pages are allowed as Addr parameter to the READ command.
+- page address 00h to 2Ch for NTAG213
+- page address 00h to 86h for NTAG215
+- page address 00h to E6h for NTAG216
+
+Addressing a memory page beyond the limits above results in a NAK response from NTAG21x.
+
+A roll-over mechanism is implemented to continue reading from page 00h once the end of the accessible 
+memory is reached. Reading from address 2Ah on a NTAG213 results in pages 2Ah, 2Bh, 2Ch and 00h being 
+returned.
+
+The following conditions apply if part of the memory is password protected for read access:
+
+If NTAG21x is in the ACTIVE state:
+
+– addressing a page which is equal or higher than AUTH0 results in a NAK response
+– addressing a page lower than AUTH0 results in data being returned with the roll-over mechanism 
+occurring just before the AUTH0 defined page. For example, if you read protect the tag from page 04 
+onwards and you read the page 02, you receive the data as follows: <page02> <page03> <page00> <page01>. 
+
+If NTAG21x is in the AUTHENTICATED state:
+
+– the READ command behaves like on a NTAG21x without access protection
+
+Remark: PWD ("Password") and PACK values can never be read out of the memory. When reading from the 
+pages holding those two values, all *00h* bytes are replied to the NFC device instead.
+
+### Fast Read Command 0x3Ah
+
+he FAST_READ command requires a start page address and an end page address and returns the all 
+n*4 bytes of the addressed pages. For example if the start address is 03h and the end address is 07h 
+then pages 03h, 04h, 05h, 06h and 07h are returned. If the addressed page is outside of accessible 
+area, NTAG21x replies a NAK.
+
+In the initial state of NTAG21x, all memory pages are allowed as StartAddr parameter to the FAST_READ command.
+- page address 00h to 2Ch for NTAG213
+- page address 00h to 86h for NTAG215
+- page address 00h to E6h for NTAG216
+
+- Addressing a memory page beyond the limits above results in a NAK response from NTAG21x.
+
+The EndAddr parameter must be equal to or higher than the StartAddr.
+The following conditions apply if part of the memory is password protected for read access:
+- if NTAG21x is in the ACTIVE state
+
+ –> if any requested page address is equal or higher than AUTH0 a NAK is replied
+ 
+- if NTAG21x is in the AUTHENTICATED state
+  
+  –> the FAST_READ command behaves like on a NTAG21x without access protection
+
+**Remark**: PWD and PACK values can never be read out of the memory. When reading from the pages 
+holding those two values, all 00h bytes are replied to the NFC device instead.
+
+**Remark**: The FAST_READ command is able to read out the whole memory with one command. Nevertheless, 
+**receive buffer of the NFC device must be able to handle the requested amount of data** as there is no 
+chaining possibility.
+
+You retrieve the "receive buffer size" of your device with the simple NfcA call:
+`int maxTransceiveLength = nfcA.getMaxTransceiveLength();`
+
+For e.g., my Samsung device gives me a size 253 for the buffer, so I'm been able to **fastread around 60 pages** 
+in one run (60 pages * 4 bytes each = 240 bytes, this includes some protocol overhead bytes). Please 
+be aware that each device may have a different buffer size and you cannot rely on a static value !
+
+### Write Command 0xA2h
+
+
+
+### Compability Write Command 0xA0h
+
+
+### Read Counter Command 0x39h
+
+
+
+### Read Signature Command: 
+
+
+### NTAG ACK and NAK responses
+
+
+### ATQA and SAK responses
+
 
 This is a simple app showing how to detect and read some data from an NFC tag tapped to the Android's NFC reader.
 
