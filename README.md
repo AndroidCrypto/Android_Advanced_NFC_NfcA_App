@@ -60,6 +60,7 @@ fixedHeader: 0
 hardwareVendorId: 4
 hardwareType: 4
 hardwareSubtype: 2
+Identification: NTAG 2xx on MIFARE native IC
 hardwareVersionMajor: 1
 hardwareVersionMinor: 0
 hardwareStorageSize: 19

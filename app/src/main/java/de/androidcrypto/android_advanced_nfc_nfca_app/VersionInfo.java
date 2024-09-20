@@ -61,7 +61,7 @@ public class VersionInfo {
      * 0xX1 = MIFARE DESFire
      * 0xX2 = MIFARE Plus
      * 0xX3 = MIFARE Ultralight
-     * 0x04 = NTAG 4xx
+     * 0x04 = NTAG 2xx
      * 0xX5 = RFU
      * 0xX6 = RFU
      * 0xX7 = NTAG I2C
