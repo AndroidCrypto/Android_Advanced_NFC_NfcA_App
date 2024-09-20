@@ -1,11 +1,14 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateByteArrays;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
 
 import android.nfc.tech.NfcA;
 import android.util.Log;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * This class takes all commands that are useful to communicate with an NFC tag that supports
@@ -40,7 +43,7 @@ public class NfcACommands {
      * @param nfcA
      * @param pageNumber
      * @return The command returns 16 bytes (4 pages) with one command. In case of an error the
-     *         method returns the response of the tag, e.g. '0x6700h' or '0x04h.
+     * method returns the response of the tag, e.g. '0x6700h' or '0x04h.
      */
     public static byte[] readSector(NfcA nfcA, int pageNumber) {
         byte[] response = null;
@@ -71,5 +74,38 @@ public class NfcACommands {
         }
         return null;
     }
+
+    public static byte[] getMoreData(NfcA nfcA) {
+        // we need to run this command as long we are asked for more data by the NFC tag
+        boolean moreDataRequested = true;
+        byte[] moreDataToReturn = new byte[0];
+        while (moreDataRequested == true) {
+            byte[] response;
+            try {
+                response = nfcA.transceive(new byte[]{
+                        (byte) 0xAF  // Get More Data command
+                });
+                System.out.println(printData("gmd response", response));
+                if (response.length > 0) {
+                    if (response[0] == (byte) 0xAF) {
+                        moreDataRequested = true;
+                        // we need to skip the trailing 'AF'
+                        moreDataToReturn = concatenateByteArrays(moreDataToReturn, Arrays.copyOfRange(response, 1, response.length));
+                    } else {
+                        moreDataRequested = false;
+                        moreDataToReturn = concatenateByteArrays(moreDataToReturn, response);
+                    }
+                }
+            } catch (IOException e) {
+                Log.e(TAG, "Get More Data failed with IOException: " + e.getMessage());
+                lastExceptionString = "Get Version failed with IOException: " + e.getMessage();
+                moreDataRequested = false; // stop reading
+                moreDataToReturn = null;
+            }
+        }
+        Log.d(TAG, printData("Get More Data", moreDataToReturn));
+        return moreDataToReturn;
+    }
+
 }
 

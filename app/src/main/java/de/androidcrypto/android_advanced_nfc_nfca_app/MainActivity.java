@@ -1,10 +1,12 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMoreData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getVersion;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.lastExceptionString;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readSector;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateByteArrays;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
 
@@ -71,10 +73,10 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
         output += lineDivider + "\n";
         output += "The TechList contains " + techlist.length + " entry/ies:" + "\n";
         for (int i = 0; i < techlist.length; i++) {
-            output += "Entry " + i + ": " + techlist[i]  + "\n";
+            output += "Entry " + i + ": " + techlist[i] + "\n";
         }
         output += lineDivider + "\n";
-        output += tag.toString()  + "\n";
+        output += tag.toString() + "\n";
         output += lineDivider + "\n";
         // if the tag uses the NfcA class I'm connecting the tag now this class
         // I'm trying to use the NfcA class, if it is not supported by the tag an exception is thrown
@@ -103,13 +105,34 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += lineDivider + "\n";
                 output += "GET VERSION data" + "\n";
                 byte[] getVersionData = getVersion(nfcA);
+                // Get Version data: 0004040201001303
                 boolean getVersionSuccess = false;
                 if (getVersionData == null) {
                     output += "Could not read the version of the tag, maybe it is read protected ?" + "\n";
                     output += "Exception from operation: " + lastExceptionString + "\n";
                 } else {
-                    // we got a response but need to check the response data
-                    // in case everything was ok we received the full content of 4 pages = 16 bytes
+                    /**
+                     * We got a response but need to check the response data
+                     * in case everything was ok we received the 8 bytes long version data
+                     * but there is a special case: newer NFC tags from NXP will give more
+                     * information on the getVersionCommand that get be included in the 8
+                     * bytes response. This is indicated by a trailing "AF" in the response:
+                     * Example from MIFARE DESFire EV3:
+                     * Get Version data: AF04010133001605
+                     * In this case the card asks the reader to get more data by sending
+                     * an "0xAF" command.
+                     * This is implemented in the following lines
+                     */
+                    System.out.println(printData("getVersionData", getVersionData));
+                    if (getVersionData[0] == (byte) 0xAF) {
+                        output += "Received an 'AF' request -> asking for more data" + "\n";
+                        // we need to repeat the 'more data' command until no more data is provided
+                        byte[] moreData = getMoreData(nfcA);
+                        // skip the trailing 'AF' and concatenate it with moreData to get the full get version data
+                        byte[] shortedGetVersionData = Arrays.copyOfRange(getVersionData, 1, getVersionData.length);
+                        System.out.println(printData("shortedGetVersionData", shortedGetVersionData));
+                        getVersionData = concatenateByteArrays(Arrays.copyOfRange(getVersionData, 1, getVersionData.length), moreData);
+                    }
                     // in all other cases something went wrong, but those responses are tag type specific
                     if (getVersionData.length > 2) {
                         output += "Get Version data: " + bytesToHexNpe(getVersionData) + "\n";
@@ -137,6 +160,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     VersionInfo tagVersionData = new VersionInfo(getVersionData);
                     if (getVersionData.length == 8) {
                         output += tagVersionData.dump8Bytes();
+                    } else {
+                        output += tagVersionData.dump();
                     }
                 } else {
                     output += "Analyzing of the get version data skipped" + "\n";
@@ -176,7 +201,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 //
                 output += lineDivider + "\n";
                 output += "xxx page 04" + "\n";
-
 
 
                 nfcA.close();

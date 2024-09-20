@@ -22,6 +22,7 @@ package de.androidcrypto.android_advanced_nfc_nfca_app;
 
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToLowerNibbleInt;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToUpperNibbleInt;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -76,6 +77,7 @@ public class VersionInfo {
 
     public VersionInfo(byte[] bytes) throws IOException {
         System.out.println("bytes length: " + bytes.length);
+        System.out.println("VersionInfo bytes: " + bytesToHexNpe(bytes));
         /*
         if(bytes.length < 7 + 7 + uid.length + batchNumber.length + 2) {
             throw new IllegalArgumentException();
@@ -334,7 +336,7 @@ public class VersionInfo {
 
     public String dump() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Version data dump (xx bytes)").append("\n");
+        sb.append("Version data dump (27 bytes)").append("\n");
         sb.append("hardwareVendorId: ").append(hardwareVendorId).append("\n");
         sb.append("hardwareType: ").append(hardwareType).append("\n");
         sb.append("hardwareSubtype: ").append(hardwareSubtype).append("\n");

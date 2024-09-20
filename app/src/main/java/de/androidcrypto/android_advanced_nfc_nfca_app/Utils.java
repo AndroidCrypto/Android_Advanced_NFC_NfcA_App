@@ -51,6 +51,20 @@ public class Utils {
         return sb.toString();
     }
 
+    public static byte[] concatenateByteArrays(byte[] dataA, byte[] dataB) {
+        byte[] concatenated = new byte[dataA.length + dataB.length];
+
+        for (int i = 0; i < dataA.length; i++) {
+            concatenated[i] = dataA[i];
+        }
+
+        for (int i = 0; i < dataB.length; i++) {
+            concatenated[dataA.length + i] = dataB[i];
+        }
+
+        return concatenated;
+    }
+
     public static int byteToUpperNibbleInt(Byte input) {
         return (input & 0xF0 ) >> 4;
     }
