@@ -45,7 +45,7 @@ public class NfcACommands {
      * @return The command returns 16 bytes (4 pages) with one command. In case of an error the
      * method returns the response of the tag, e.g. '0x6700h' or '0x04h.
      */
-    public static byte[] readSector(NfcA nfcA, int pageNumber) {
+    public static byte[] readPage(NfcA nfcA, int pageNumber) {
         byte[] response = null;
         try {
             response = nfcA.transceive(new byte[]{
@@ -55,11 +55,26 @@ public class NfcACommands {
             return response;
         } catch (IOException e) {
             Log.e(TAG, "on page " + pageNumber + " readPage failed with IOException: " + e.getMessage());
-            lastExceptionString = "readSector for " + pageNumber + " failed with IOException: " + e.getMessage();
+            lastExceptionString = "readPage for " + pageNumber + " failed with IOException: " + e.getMessage();
         }
         return null;
     }
 
+    public static byte[] fastReadPage (NfcA nfcA, int pageNumberStart, int pageNumberEnd) {
+        byte[] response = null;
+        try {
+            response = nfcA.transceive(new byte[]{
+                    (byte) 0x3A, // FAST READ pages command
+                    (byte) (pageNumberStart & 0x0ff),  // first page address to read
+                    (byte) (pageNumberEnd & 0x0ff)  // last page address to read
+            });
+            return response;
+        } catch (IOException e) {
+            Log.e(TAG, "on pages range " + pageNumberStart + " to " + pageNumberEnd + " fastReadPage failed with IOException: " + e.getMessage());
+            lastExceptionString = "fastReadPage range " + +pageNumberStart + " to " + pageNumberEnd + " fastReadPage failed with IOException: " + e.getMessage();
+            return null;
+        }
+    }
 
     public static byte[] getVersion(NfcA nfcA) {
         byte[] response = null;
