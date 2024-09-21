@@ -115,6 +115,38 @@ public class TagInformation {
             tagHasOtpArea = false;
             numberOfCounter = 0;
             return true;
+        } else if((Arrays.equals(atqa, hexStringToByteArray("0400")) && (sak == (byte) 0x20))) {
+            // MIFARE DESFire light or NTAG424DNA
+            tagMajorName = "Assumed Credit Card";
+            tagMinorName = "Assumed Credit Card";
+            userMemory = 0;
+            userMemoryStartPage = 0;
+            userMemoryEndPage = 0; // included
+            tagMemoryEndPage = 0;
+            tagHasFastReadCommand = false;
+            tagHasAuthentication = false;
+            tagHasDesAuthenticationSecurity = false;
+            tagHasPasswordSecurity = false;
+            tagHasPageLockBytes = false;
+            tagHasOtpArea = false;
+            numberOfCounter = 0;
+            return true;
+        } else if((Arrays.equals(atqa, hexStringToByteArray("0800")) && (sak == (byte) 0x20))) {
+            // MIFARE DESFire light or NTAG424DNA
+            tagMajorName = "Assumed German Girocard";
+            tagMinorName = "Assumed German Girocard";
+            userMemory = 0;
+            userMemoryStartPage = 0;
+            userMemoryEndPage = 0; // included
+            tagMemoryEndPage = 0;
+            tagHasFastReadCommand = false;
+            tagHasAuthentication = false;
+            tagHasDesAuthenticationSecurity = false;
+            tagHasPasswordSecurity = false;
+            tagHasPageLockBytes = false;
+            tagHasOtpArea = false;
+            numberOfCounter = 0;
+            return true;
         }
         tagMajorName = "UNKNOWN TAG";
         tagMinorName = "UNKNOWN TAG";
