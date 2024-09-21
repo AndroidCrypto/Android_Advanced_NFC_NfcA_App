@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
     private TextView textView;
     private NfcAdapter myNfcAdapter;
+    private TagInformation ti;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +97,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
             output += "maxTransceiveLength: " + maxTransceiveLength + "\n";
             output += lineDivider + "\n";
 
+            // instantiate a TagInformation object
+            ti = new TagInformation(tagUid, atqa, sak, maxTransceiveLength, techlist);
+
             try {
                 nfcA.connect();
                 output += "Connected to the tag using NfcA technology" + "\n";
@@ -138,6 +142,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += "Get Version data: " + bytesToHexNpe(getVersionData) + "\n";
                         //output += "\n" + new String(sectorsData, StandardCharsets.UTF_8) + "\n";
                         getVersionSuccess = true;
+                        ti.tagHasGetVersionCommand = true;
                     } else if (Arrays.equals(getVersionData, hexStringToByteArray("04"))) {
                         output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
                         output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
@@ -162,6 +167,54 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += tagVersionData.dump8Bytes();
                     } else {
                         output += tagVersionData.dump();
+                    }
+                    // take some information from Get Version
+                    ti.tagMajorName = tagVersionData.tagTypeLookup(tagVersionData.getHardwareType());
+                    // data for NTAG21x
+                    if (ti.tagMajorName.equals(VersionInfo.MajorTagType.NTAG_21x.toString())) {
+                        // get more data for NTAG21x family
+                        if (tagVersionData.getHardStorageSizeRaw() == 15) {
+                            // it is an NTAG213
+                            ti.tagMinorName = "NTAG213";
+                            ti.userMemory = 144;
+                            ti.userMemoryStartPage = 4;
+                            ti.userMemoryEndPage = 39; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 17) {
+                            // it is an NTAG215
+                            ti.tagMinorName = "NTAG215";
+                            ti.userMemory = 504;
+                            ti.userMemoryStartPage = 4;
+                            ti.userMemoryEndPage = 129; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 19) {
+                            // it is an NTAG216
+                            ti.tagMinorName = "NTAG216";
+                            ti.userMemory = 888;
+                            ti.userMemoryStartPage = 4;
+                            ti.userMemoryEndPage = 225; // included
+                        } else {
+                            ti.tagMinorName = "NTAG21x Unknown";
+                            ti.userMemory = 0;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0;
+                        }
+                        // general information for NTAG21x family
+                        ti.tagHasFastReadCommand = true;
+                        ti.tagHasAuthentication = true;
+                        ti.tagHasDesAuthenticationSecurity = false;
+                        ti.tagHasPasswordSecurity = true;
+                        ti.tagHasPageLockBytes = true;
+                        ti.tagHasOtpArea = true;
+                        output += "Tag is of type " + ti.tagMinorName + "\n";
+                    } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
+                        // get more data for Ultralight EV1 family
+                        if (tagVersionData.getHardStorageSizeRaw() == 15) {
+                            // it is an NTAG213
+                            ti.tagMinorName = "NTAG213";
+                            ti.userMemory = 144;
+                            ti.userMemoryStartPage = 4;
+                            ti.userMemoryEndPage = 39; // included
+                    } else {
+                        output += "This is an UNKNOWN tag type" + "\n";
                     }
                 } else {
                     output += "Analyzing of the get version data skipped" + "\n";
@@ -212,11 +265,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
         // final output
         String finalOutput = output;
-        runOnUiThread(() -> {
+
+        runOnUiThread(() ->
+
+        {
             textView.setText(finalOutput);
         });
         // output of the logfile to console
         System.out.println(output);
+
         // a short information about the detection of an NFC tag after all reading is done
         playBeep();
     }

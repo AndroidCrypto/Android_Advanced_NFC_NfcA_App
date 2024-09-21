@@ -56,6 +56,10 @@ public class VersionInfo {
 
     // Source: https://github.com/skjolber/external-nfc-api/blob/d1cf337dbfca6d34b6a71fd951e60fb467ea2f01/core/src/main/java/com/github/skjolber/nfc/service/desfire/VersionInfo.java
 
+    enum MajorTagType {
+        MIFARE_DESFire, MIFARE_Plus, MIFARE_Ultralight, NTAG_21x, NTAG_I2C, MIFARE_DESFire_Light, UNKNOWN
+    }
+
     /**
      * A short identification overview:
      * HardwareType of (lower nibble):
@@ -185,6 +189,10 @@ public class VersionInfo {
         this.hardwareStorageSize = hardwareStorageSize;
     }
 
+    // return the raw data
+    public int getHardStorageSizeRaw() {
+        return hardwareStorageSize;
+    }
     public int getHardwareProtocol() {
         return hardwareProtocol;
     }
@@ -298,9 +306,15 @@ public class VersionInfo {
     }
 
     public String productTypeLookup(int productType) {
-        int upperNibble = byteToUpperNibbleInt((byte) productType);
-        int lowerNibble = byteToLowerNibbleInt((byte) productType);
         String upperNippleType, lowerNippleType;
+        upperNippleType = hardwareTypeLookup(productType);
+        lowerNippleType = tagTypeLookup(productType);
+        return lowerNippleType + " on " + upperNippleType;
+    }
+
+    public String hardwareTypeLookup(int productType) {
+        int upperNibble = byteToUpperNibbleInt((byte) productType);
+        String upperNippleType;
         if (upperNibble == 0) {
             upperNippleType = "MIFARE native IC";
         } else if (upperNibble == 8) {
@@ -312,26 +326,32 @@ public class VersionInfo {
         } else {
             upperNippleType = "Unknown Hardware";
         }
+        return upperNippleType;
+    }
+
+    public String tagTypeLookup(int productType) {
+        int lowerNibble = byteToLowerNibbleInt((byte) productType);
+        String lowerNippleType;
         if (lowerNibble == 1) {
-            lowerNippleType = "MIFARE DESFire";
+            lowerNippleType = MajorTagType.MIFARE_DESFire.toString();
         } else if (lowerNibble == 2) {
-            lowerNippleType = "MIFARE Plus";
+            lowerNippleType = MajorTagType.MIFARE_Plus.toString();
         } else if (lowerNibble == 3) {
-            lowerNippleType = "MIFARE Ultralight";
+            lowerNippleType = MajorTagType.MIFARE_Ultralight.toString();
         } else if (lowerNibble == 4) {
-            lowerNippleType = "NTAG 2xx";
+            lowerNippleType = MajorTagType.NTAG_21x.toString();
         } else if (lowerNibble == 5) {
             lowerNippleType = "RFU";
         } else if (lowerNibble == 6) {
             lowerNippleType = "RFU";
         } else if (lowerNibble == 7) {
-            lowerNippleType = "NTAG I2C";
+            lowerNippleType = MajorTagType.NTAG_I2C.toString();
         } else if (lowerNibble == 8) {
-            lowerNippleType = "MIFARE DESFire Light";
+            lowerNippleType = MajorTagType.MIFARE_DESFire_Light.toString();
         } else {
-            lowerNippleType = "Unknown Tag Type";
+            lowerNippleType = MajorTagType.UNKNOWN.toString();
         }
-        return lowerNippleType + " on " + upperNippleType;
+        return lowerNippleType;
     }
 
     public String dump() {
