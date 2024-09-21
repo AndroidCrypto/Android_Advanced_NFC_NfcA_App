@@ -207,12 +207,24 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += "Tag is of type " + ti.tagMinorName + "\n";
                     } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
                         // get more data for Ultralight EV1 family
+
+                        // todo ### get ultralight technical data !!
+
                         if (tagVersionData.getHardStorageSizeRaw() == 15) {
                             // it is an NTAG213
                             ti.tagMinorName = "NTAG213";
                             ti.userMemory = 144;
                             ti.userMemoryStartPage = 4;
                             ti.userMemoryEndPage = 39; // included
+                        }
+                        // general information for Ultralight EV1 family
+                        ti.tagHasFastReadCommand = true;
+                        ti.tagHasAuthentication = true;
+                        ti.tagHasDesAuthenticationSecurity = false;
+                        ti.tagHasPasswordSecurity = true;
+                        ti.tagHasPageLockBytes = true;
+                        ti.tagHasOtpArea = true;
+                        output += "Tag is of type " + ti.tagMinorName + "\n";
                     } else {
                         output += "This is an UNKNOWN tag type" + "\n";
                     }
