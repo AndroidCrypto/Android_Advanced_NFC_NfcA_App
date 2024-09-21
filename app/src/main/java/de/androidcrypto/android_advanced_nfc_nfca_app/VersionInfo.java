@@ -364,17 +364,14 @@ public class VersionInfo {
         sb.append("hardwareVersionMajor: ").append(hardwareVersionMajor).append("\n");
         sb.append("hardwareVersionMinor: ").append(hardwareVersionMinor).append("\n");
         sb.append("hardwareStorageSize: ").append(hardwareStorageSize).append("\n");
-
         sb.append("hardwareProtocol: ").append(hardwareProtocol).append("\n");
         sb.append("softwareVendorId: ").append(softwareVendorId).append("\n");
         sb.append("softwareType: ").append(softwareType).append("\n");
         sb.append("softwareSubtype: ").append(softwareSubtype).append("\n");
-
         sb.append("softwareType: ").append(softwareType).append("\n");
         sb.append("softwareVersionMajor: ").append(softwareVersionMajor).append("\n");
         sb.append("softwareVersionMinor: ").append(softwareVersionMinor).append("\n");
         sb.append("softwareStorageSize: ").append(softwareStorageSize).append("\n");
-
         sb.append("softwareProtocol: ").append(softwareProtocol).append("\n");
         sb.append("softwareStorageSize: ").append(softwareStorageSize).append("\n");
         sb.append("Uid: ").append(Utils.bytesToHexNpe(uid)).append("\n");

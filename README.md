@@ -3,7 +3,7 @@
 ## data sheets of the described NFC tags
 
 - NXP NTAG21x tags (NTAG213, NTAG215 and NTAG216): https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf
-- NXP Ultralight EV1: 
+- NXP Ultralight EV1 (MF0ULX1): https://www.nxp.com/docs/en/data-sheet/MF0ULX1.pdf
 - NXP MIFARE DESFire EV3 short data sheet (MF3D_H_X3_SDS): https://www.nxp.com/docs/en/data-sheet/MF3D_H_X3_SDS.pdf
 - Philips mifare DESFire MF3 IC D40 (M075031, outdated but newer DESFire tags are backwards compatible): https://neteril.org/files/M075031_desfire.pdf
 - MIFARE type identification procedure (AN10833): https://www.nxp.com/docs/en/application-note/AN10833.pdf
@@ -446,3 +446,55 @@ Connected to the tag using NfcV technology
 This tag is NOT supporting the NDEF class
 --------------------
 ```
+
+```plaintext
+/*
+Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722
+DESFire EV1 2K with 2048 bytes user memory
+hardwareVendorId: 4
+hardwareType: 1
+hardwareSubtype: 1
+Identification: MIFARE_DESFire on MIFARE native IC
+hardwareVersionMajor: 1
+hardwareVersionMinor: 0
+hardwareStorageSize: 22
+hardwareProtocol: 5
+ */
+/*
+// Get Version data: 04010112001605040101020116050004464BDAD37580CF5B9665003521
+DESFire EV2 2K with 2048 bytes user memory
+hardwareVendorId: 4
+hardwareType: 1
+hardwareSubtype: 1
+Identification: MIFARE_DESFire on MIFARE native IC
+hardwareVersionMajor: 18
+hardwareVersionMinor: 0
+hardwareStorageSize: 22
+hardwareProtocol: 5
+*/
+/*
+Get Version data: 040101120018050401010201180500041858FA991190CF6C145D801222
+DESFire EV2 4K with 4048 bytes user memory
+hardwareVendorId: 4
+hardwareType: 1
+hardwareSubtype: 1
+Identification: MIFARE_DESFire on MIFARE native IC
+hardwareVersionMajor: 18
+hardwareVersionMinor: 0
+hardwareStorageSize: 24
+hardwareProtocol: 5
+*/
+/*
+Get Version data: 040101330016050401010300160500045E083250149020466430304822
+DESFire EV3 2K with 2048 bytes user memory
+hardwareVendorId: 4
+hardwareType: 1
+hardwareSubtype: 1
+Identification: MIFARE_DESFire on MIFARE native IC
+hardwareVersionMajor: 51
+hardwareVersionMinor: 0
+hardwareStorageSize: 22
+hardwareProtocol: 5
+*/
+```
+

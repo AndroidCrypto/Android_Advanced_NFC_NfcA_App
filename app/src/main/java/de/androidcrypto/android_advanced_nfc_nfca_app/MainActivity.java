@@ -174,18 +174,21 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     if (ti.tagMajorName.equals(VersionInfo.MajorTagType.NTAG_21x.toString())) {
                         // get more data for NTAG21x family
                         if (tagVersionData.getHardStorageSizeRaw() == 15) {
+                            // Get Version data: 0004040201000F03
                             // it is an NTAG213
                             ti.tagMinorName = "NTAG213";
                             ti.userMemory = 144;
                             ti.userMemoryStartPage = 4;
                             ti.userMemoryEndPage = 39; // included
                         } else if (tagVersionData.getHardStorageSizeRaw() == 17) {
+                            // Get Version data: 0004040201001103
                             // it is an NTAG215
                             ti.tagMinorName = "NTAG215";
                             ti.userMemory = 504;
                             ti.userMemoryStartPage = 4;
                             ti.userMemoryEndPage = 129; // included
                         } else if (tagVersionData.getHardStorageSizeRaw() == 19) {
+                            // Get Version data: 0004040201001303
                             // it is an NTAG216
                             ti.tagMinorName = "NTAG216";
                             ti.userMemory = 888;
@@ -204,18 +207,27 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         ti.tagHasPasswordSecurity = true;
                         ti.tagHasPageLockBytes = true;
                         ti.tagHasOtpArea = true;
-                        output += "Tag is of type " + ti.tagMinorName + "\n";
+                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
                     } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
-                        // get more data for Ultralight EV1 family
-
-                        // todo ### get ultralight technical data !!
-
-                        if (tagVersionData.getHardStorageSizeRaw() == 15) {
-                            // it is an NTAG213
-                            ti.tagMinorName = "NTAG213";
-                            ti.userMemory = 144;
+                        if (tagVersionData.getHardStorageSizeRaw() == 11) {
+                            // Get Version data: 0004030101000B03
+                            // it is an Ultralight EV1 with 48 bytes user memory MF0UL11
+                            ti.tagMinorName = "MF0UL11";
+                            ti.userMemory = 48;
                             ti.userMemoryStartPage = 4;
-                            ti.userMemoryEndPage = 39; // included
+                            ti.userMemoryEndPage = 15; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 14) {
+                            // Get Version data: 0004030101000E03
+                            // it is an Ultralight EV1 with 128 bytes user memory MF0UL21
+                            ti.tagMinorName = "MF0UL21";
+                            ti.userMemory = 128;
+                            ti.userMemoryStartPage = 4;
+                            ti.userMemoryEndPage = 35; // included
+                        } else {
+                            ti.tagMinorName = "MF0ULx Unknown";
+                            ti.userMemory = 0;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0;
                         }
                         // general information for Ultralight EV1 family
                         ti.tagHasFastReadCommand = true;
@@ -224,8 +236,97 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         ti.tagHasPasswordSecurity = true;
                         ti.tagHasPageLockBytes = true;
                         ti.tagHasOtpArea = true;
-                        output += "Tag is of type " + ti.tagMinorName + "\n";
+                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                    } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire.toString())) {
+                        // this is a MIFARE DESFire tag that requires other commands to work with
+                        // just analyzing some response data to identify the tag
+                        // get the sub type EV1 / EV2 / EV3
+                        String desfireSubType;
+                        if (tagVersionData.getHardwareVersionMajor() == 1) {
+                            // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722 (EV1 2K)
+                            desfireSubType = "EV1";
+                        } else if (tagVersionData.getHardwareVersionMajor() == 18) {
+                            desfireSubType = "EV2";
+                        } else if (tagVersionData.getHardwareVersionMajor() == 51) {
+                            desfireSubType = "EV3";
+                        } else {
+                            desfireSubType = "EVx (unknown)";
+                        }
+                        // get the storage size
+                        if (tagVersionData.getHardStorageSizeRaw() == 22) {
+                            // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722
+                            // it is an DESFire EVx 2K with 2048 bytes user memory
+                            ti.tagMinorName = "DESFire " + desfireSubType + " 2K";
+                            ti.userMemory = 2048;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 24) {
+                            // Get Version data: 04010112001605040101020116050004464BDAD37580CF5B9665003521
+                            // it is an DESFire EVx 4K with 4096 bytes user memory
+                            ti.tagMinorName = "DESFire " + desfireSubType + " 4K";
+                            ti.userMemory = 4096;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 26) {
+                            // it is an DESFire EVx 8K with 8192 bytes user memory
+                            ti.tagMinorName = "DESFire " + desfireSubType + " 8K";
+                            ti.userMemory = 8196;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 28) {
+                            // it is an DESFire EVx 16K with 4096 bytes user memory
+                            ti.tagMinorName = "DESFire " + desfireSubType + " 16K";
+                            ti.userMemory = 16384;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0; // included
+                        } else if (tagVersionData.getHardStorageSizeRaw() == 30) {
+                            // it is an DESFire EVx 32K with 4096 bytes user memory
+                            ti.tagMinorName = "DESFire " + desfireSubType + " 32K";
+                            ti.userMemory = 32768;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0; // included
+                        } else {
+                            ti.tagMinorName = "DESFire " + desfireSubType + " unknown memory";
+                            ti.userMemory = 0;
+                            ti.userMemoryStartPage = 0;
+                            ti.userMemoryEndPage = 0;
+                        }
+                        // general information for DESFire EVx family
+                        ti.tagHasFastReadCommand = false;
+                        ti.tagHasAuthentication = false;
+                        ti.tagHasDesAuthenticationSecurity = false;
+                        ti.tagHasPasswordSecurity = false;
+                        ti.tagHasPageLockBytes = false;
+                        ti.tagHasOtpArea = false;
+                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                    } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire_Light.toString())) {
+                        // unfortunately the DESFire light tag does not respond on Get Version command
+                        // when using the NfcA technology (just when using IsoDep class), so this is
+                        // just a stub and usually this is never called
+                        ti.tagMajorName = "DESFire light";
+                        ti.tagMinorName = "DESFire light 640 bytes";
+                        ti.userMemory = 640;
+                        ti.userMemoryStartPage = 0;
+                        ti.userMemoryEndPage = 0; // included
+                        ti.tagHasFastReadCommand = false;
+                        ti.tagHasAuthentication = false;
+                        ti.tagHasDesAuthenticationSecurity = false;
+                        ti.tagHasPasswordSecurity = false;
+                        ti.tagHasPageLockBytes = false;
+                        ti.tagHasOtpArea = false;
+                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
                     } else {
+                        ti.tagMajorName = "Unknown";
+                        ti.tagMinorName = "Unknown";
+                        ti.userMemory = 0;
+                        ti.userMemoryStartPage = 0;
+                        ti.userMemoryEndPage = 0; // included
+                        ti.tagHasFastReadCommand = false;
+                        ti.tagHasAuthentication = false;
+                        ti.tagHasDesAuthenticationSecurity = false;
+                        ti.tagHasPasswordSecurity = false;
+                        ti.tagHasPageLockBytes = false;
+                        ti.tagHasOtpArea = false;
                         output += "This is an UNKNOWN tag type" + "\n";
                     }
                 } else {

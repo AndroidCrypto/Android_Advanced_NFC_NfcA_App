@@ -45,4 +45,32 @@ public class TagInformation {
         this.maxTransceiveLength = maxTransceiveLength;
         this.technologies = technologies;
     }
+
+    public void identifyTag() {
+        // todo fill with life
+/*
+DESFire EVx:
+ATQA: 4403
+SAK: 20
+
+DESFire light:
+ATQA: 4403
+SAK: 20
+in NfcA class does not run getCommand
+
+NTAG424DNA
+ATQA: 4403
+SAK: 20
+in NfcA class does not run getCommand
+
+GiroCard
+ATQA: 0800
+SAK: 20
+
+CreditCard + VPay Girocard
+ATQA: 0400
+SAK: 20
+
+ */
+    }
 }
