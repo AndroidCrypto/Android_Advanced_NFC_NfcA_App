@@ -1,15 +1,19 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.checkResponse;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.fastReadPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMoreData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getVersion;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.lastExceptionString;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readPage;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.resolveCheckResponse;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writePage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateByteArrays;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
 
 import android.content.Intent;
 import android.media.AudioManager;
@@ -489,9 +493,80 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                     }
                 }
 */
+
+                // analyze ACCESS byte
+                // todo check for NTAG213
+                // AUTH0 is on page 41 byte 4, ACCESS on page 42 byte 0
+                byte[] pagesData41 = readPage(nfcA, 41);
+                System.out.println(printData("pagesData41", pagesData41));
+                byte auth0 = pagesData41[3];
+                output += printData("auth0", new byte[]{auth0}) + "\n";
+                byte accessByte = pagesData41[4];
+                if (testBit(accessByte, 0)) {
+                    output += "Access Byte Bit 0 AuthLim0 1" + "\n";
+                } else {
+                    output += "Access Byte Bit 0 AuthLim0 0" + "\n";
+                }
+                if (testBit(accessByte, 1)) {
+                    output += "Access Byte Bit 1 AuthLim1 1" + "\n";
+                } else {
+                    output += "Access Byte Bit 1 AuthLim1 0" + "\n";
+                }
+                if (testBit(accessByte, 2)) {
+                    output += "Access Byte Bit 2 AuthLim2 1" + "\n";
+                } else {
+                    output += "Access Byte Bit 2 AuthLim2 0" + "\n";
+                }
+                if (testBit(accessByte, 3)) {
+                    output += "Access Byte Bit 3 CountProt 1 enabled" + "\n";
+                } else {
+                    output += "Access Byte Bit 3 CountProt 0 disabled" + "\n";
+                }
+                if (testBit(accessByte, 4)) {
+                    output += "Access Byte Bit 4 CountEnab 1 enabled" + "\n";
+                } else {
+                    output += "Access Byte Bit 4 CountEnab 0 disabled" + "\n";
+                }
+                output += "Access Byte Bit 5 RFU" + "\n";
+                if (testBit(accessByte, 6)) {
+                    output += "Access Byte Bit 6 ConfigLocked 1 enabled" + "\n";
+                } else {
+                    output += "Access Byte Bit 6 CountLocked 0 disabled" + "\n";
+                }
+                if (testBit(accessByte, 7)) {
+                    output += "Access Byte Bit 7 1 Read&Write Access AUTH prot" + "\n";
+                } else {
+                    output += "Access Byte Bit 7 0 Write Access AUTH prot" + "\n";
+                }
+
+
                 //
                 output += lineDivider + "\n";
-                output += "xxx page 04" + "\n";
+                output += "write on page 04" + "\n";
+                byte[] dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
+                byte[] writeResponse = writePage(nfcA, 4, dataToWrite);
+                output += printData("writeToPage 04 response", writeResponse) + "\n";
+                // I'm using byte 0 only for checking
+                output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
+                output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
+
+                output += lineDivider + "\n";
+                output += "test for data too long" + "\n";
+                dataToWrite = "12345".getBytes(StandardCharsets.UTF_8);
+                writeResponse = writePage(nfcA, 4, dataToWrite);
+                output += printData("writeToPage 04 response", writeResponse) + "\n";
+                // I'm using byte 0 only for checking
+                output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
+                output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
+
+                output += lineDivider + "\n";
+                output += "test for page outside of tag range" + "\n";
+                dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
+                writeResponse = writePage(nfcA, 254, dataToWrite);
+                output += printData("writeToPage 04 response", writeResponse) + "\n";
+                // I'm using byte 0 only for checking
+                output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
+                output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
 
 
                 nfcA.close();
