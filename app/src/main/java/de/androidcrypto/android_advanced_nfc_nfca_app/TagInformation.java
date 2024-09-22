@@ -25,6 +25,7 @@ public class TagInformation {
     public int userMemoryStartPage = 0;
     public int userMemoryEndPage = 0;
     public int tagMemoryEndPage = 0;
+    public int configurationStartPage = 0;
     public boolean tagHasGetVersionCommand = false;
     public boolean tagHasFastReadCommand = false;
     public boolean tagHasAuthentication = false;
@@ -37,6 +38,9 @@ public class TagInformation {
     public int startPageReadProtection = 255;
     public boolean tagHasOtpArea = false;
     public boolean tagHasPageLockBytes = false;
+    // following variables are used to restrict the sample app to a single tag type
+    public boolean isTag_MIFARE_ULTRALIGHT_EV1 = false;
+    public boolean isTag_NTAG21x = false;
 
     public TagInformation(byte[] tagUid, byte[] atqa, byte sak) {
         this.tagUid = tagUid;
@@ -74,6 +78,7 @@ public class TagInformation {
             userMemoryStartPage = 4;
             userMemoryEndPage = 39; // included
             tagMemoryEndPage = 47;
+            configurationStartPage = 42;
             tagHasFastReadCommand = false;
             tagHasAuthentication = true;
             tagHasDesAuthenticationSecurity = true;

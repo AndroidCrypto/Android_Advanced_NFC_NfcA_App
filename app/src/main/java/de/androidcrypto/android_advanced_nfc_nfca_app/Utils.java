@@ -62,6 +62,13 @@ public class Utils {
         return concatenated;
     }
 
+    // 'LSB' means Lowest Significant Byte first = reversed data, e.g. the value 2 is encoded 0x020000h
+    public static int intFrom3ByteArrayLsb(byte[] bytes) {
+        return  ((bytes[2] & 0xFF) << 16) |
+                ((bytes[1] & 0xFF) << 8 ) |
+                ((bytes[0] & 0xFF) << 0 );
+    }
+
     public static int byteToUpperNibbleInt(Byte input) {
         return (input & 0xF0 ) >> 4;
     }
@@ -73,5 +80,15 @@ public class Utils {
     public static boolean testBit(byte b, int n) {
         int mask = 1 << n; // equivalent of 2 to the nth power
         return (b & mask) != 0;
+    }
+
+    // position is 0 based starting from right to left
+    public static byte setBitInByte(byte input, int pos) {
+        return (byte) (input | (1 << pos));
+    }
+
+    // position is 0 based starting from right to left
+    public static byte unsetBitInByte(byte input, int pos) {
+        return (byte) (input & ~(1 << pos));
     }
 }

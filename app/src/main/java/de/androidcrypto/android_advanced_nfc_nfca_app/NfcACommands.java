@@ -1,7 +1,9 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateByteArrays;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.intFrom3ByteArrayLsb;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
 
@@ -40,11 +42,6 @@ public class NfcACommands {
     // Read out the data in case of a failure only
     public static String lastExceptionString = "";
 
-
-    private static final byte[] atqaUltralight = hexStringToByteArray("4400");
-    private static final short sakUltralight = 0;
-    public static int pagesToRead = 41; // MFOUL21 tag, can be changed to 20 in case of a MF0UL11 tag
-    // acknowledge bytes
     public static final byte ACK = 0x0A; // this is the default response defined by NXP
     // Remark: Any 4-bit response different from Ah shall be interpreted as NAK
     public static final byte NAK_INVALID_ARGUMENT = 0x00; // this is the response defined by NXP for NTAG21x tags
@@ -128,8 +125,8 @@ public class NfcACommands {
             });
             return response;
         } catch (IOException e) {
-            Log.e(TAG, "on page " + pageNumber + " readPage failed with IOException: " + e.getMessage());
-            lastExceptionString = "readPage for " + pageNumber + " failed with IOException: " + e.getMessage();
+            Log.e(TAG, "writePage to page " + pageNumber + " writePage failed with IOException: " + e.getMessage());
+            lastExceptionString = "writePage to page " + pageNumber + " failed with IOException: " + e.getMessage();
             return new byte[]{NAK_IOEXCEPTION_ERROR};
         }
     }
@@ -180,11 +177,61 @@ public class NfcACommands {
         return moreDataToReturn;
     }
 
+    /**
+     * Reads the counter on an NTAG21x or MIFARE Ultralight EV1 tag and returns an integer value.
+     * Please read the explanation on @readCounter() for additional information.
+     * @param nfcA
+     * @param counterNumber
+     * @return the counter value 0.., in case of any error it returns -1 as value
+     */
+    public static int readCounterInt(NfcA nfcA, int counterNumber) {
+        byte[] response = readCounter(nfcA, counterNumber);
+        if (response == null) {
+            return -1;
+        } else {
+            return intFrom3ByteArrayLsb(response);
+        }
+    }
+
+    /**
+     * Reads the counter on an NTAG21x or MIFARE Ultralight EV1 tag. The NTAG21x has one counter on
+     * address 2 whereas the Ultralight EV1 has 3 counters (0..2).
+     * The counter on NTAG21x is a READ Counter, meaning it gets increased if a Read Page or Fast
+     * Read Page is sent to the tag. This feature needs to get enabled first, so on a tag with fabric
+     * settings you will receive an IOException and a NULL byte response.
+     * @param nfcA
+     * @param counterNumber
+     * @return the 24-bit (3 byte) counter in LSB encoding
+     */
+    public static byte[] readCounter(NfcA nfcA, int counterNumber) {
+        byte[] response = null;
+        try {
+            response = nfcA.transceive(new byte[]{
+                    (byte) 0x39,  // Read Counter command
+                    (byte) (counterNumber & 0x0ff) // in case Ultralight EV1 0..2, NTAG21x 2
+            });
+            return response;
+        } catch (IOException e) {
+            Log.e(TAG, "Read Counter failed with IOException: " + e.getMessage());
+            lastExceptionString = "Read Counter failed with IOException: " + e.getMessage();
+        }
+        return null;
+    }
+
+    /**
+     * Read the 32 bytes long Electronic Signature of the tag that is generated on the tag UID
+     * and the PRIVATE key owned by NXP. The verification of the signature requires the PUBLIC
+     * key and the usage of an ECC Signature validation, this is protected under NDA and not
+     * shown in this library.
+     * This is available on NTAG21x or MIFARE Ultralight EV1 tags.
+     * @param nfcA
+     * @return
+     */
     public static byte[] readSignature(NfcA nfcA) {
         byte[] response = null;
         try {
             response = nfcA.transceive(new byte[]{
-                    (byte) 0x3C,  // Read Signature command
+                    (byte) 0x3C, // Read Signature command
                     (byte) 0x00 // Address is FRU, internally fixed to 0x00h
             });
             return response;
@@ -220,6 +267,235 @@ public class NfcACommands {
             return "NAK UNKNOWN ERROR";
         }
     }
+
+    // todo exclude from final release
+
+    /**
+     * Note on working with changing the configuration settings: it is good practise to follow this
+     * workflow:
+     * 1: read the content of the configuration pages
+     * 2: change just the bits or bytes you want to change
+     * 3: write the configuration pages to the tag
+     *
+     * Please note: if the configuration pages are auth protected (for writing or writing&reading)
+     * you need to run a successful authentication before you are going to change the content of the
+     * tag. It is useful to analyze the AUTH0 byte and the ACCESS byte to be for sure.
+     */
+
+    /**
+     * Reads the two configuration pages on an NTAG21x or MIFARE Ultralight EV1 tag.
+     * The response is trimmed to the first 2 pages (8 bytes) instead of the full content of
+     * 4 pages.
+     * @param nfca
+     * @param startConfigurationPages
+     * @return 8 bytes for 2 content of configuration page 0 and 1
+     */
+    public static byte[] readConfigurationPages(NfcA nfca, int startConfigurationPages) {
+        byte[] response = readPage(nfca, startConfigurationPages);
+        if (response == null) {
+            Log.e(TAG, "readConfigurationPages starting with page " + startConfigurationPages + " failed with IOException: " + lastExceptionString);
+            return null;
+        }
+        if (response.length != 16) {
+            Log.e(TAG, "readConfigurationPages starting with page " + startConfigurationPages + " does not return 16 bytes = 4 pages of data, aborted. Length of response: " + response.length);
+            return null;
+        }
+        return Arrays.copyOf(response, 8);
+
+        /**
+         * NTAG21x
+         * first (= startConfigurationPages) configuration page
+         * byte 0: MIRROR byte
+         * byte 1: RFUI
+         * byte 2: MIRROR PAGE
+         * byte 3: AUTH0
+         * second (= startConfigurationPages + 1) configuration page
+         * byte 4: ACCESS
+         * byte 5: RFUI
+         * byte 6: RFUI
+         * byte 7: RFUI
+         *
+         * MIFARE Ultralight EV1
+         * first (= startConfigurationPages) configuration page
+         * byte 0: MOD
+         * byte 1: RFUI
+         * byte 2: RFUI
+         * byte 3: AUTH0
+         * second (= startConfigurationPages + 1) configuration page
+         * byte 4: ACCESS
+         * byte 5: VCTID
+         * byte 6: RFUI
+         * byte 7: RFUI
+         *
+         * AUTH0 defines the page address from which the password verification is required. Valid
+         * address range for byte AUTH0 is from 00h to FFh.
+         * If AUTH0 is set to a page address which is higher than the last page from the user
+         * configuration, the password protection is effectively disabled.
+         *
+         * ACCESS defines some settings, defined on bit basis
+         * Bit 7: PROT: One bit inside the ACCESS byte defining the memory protection
+         *              0b ... write access is protected by the password verification
+         *              1b ... read and write access is protected by the password verification
+         * Bit 6: CFGLCK: Write locking bit for the user configuration
+         *                0b ... user configuration open to write access
+         *                1b ... user configuration permanently locked against write access, except
+         *                       PWD and PACK
+         *        Remark: The CFGLCK bit activates the permanent write protection of the first two
+         *        configuration pages. The write lock is only activated after a power cycle of
+         *        NTAG21x. If write protection is enabled, each write attempt leads to a NAK response.
+         * Bit 5: RFUI
+         * Bit 4: NFC_CNT_EN: NFC counter configuration
+         *                    0b ... NFC counter disabled
+         *                    1b ... NFC counter enabled
+         *        If the NFC counter is enabled, the NFC counter will be automatically increased at
+         *        the first READ or FAST_READ command after a power on reset
+         * Bit 3: NFC_CNT_PWD_PROT: NFC counter password protection
+         *                          0b ... NFC counter not protected
+         *                          1b ... NFC counter password protection enabled
+         *        If the NFC counter password protection is enabled, the NFC tag will only respond
+         *        to a READ_CNT command with the NFC counter value after a valid password verification
+         * Bit 2: AUTHLIM
+         * Bit 1: AUTHLIM
+         * Bit 0: AUTHLIM
+         *        Limitation of negative password verification attempts
+         *        000b ... limiting of negative password verification attempts disabled
+         *        001b-111b ... maximum number of negative password verification attempts
+         * Note on bits 4 (NFC_CNT_EN) and 3 (NFC_CNT_PWD_PROT): they are available on an NTAG21x ONLY
+         */
+    }
+
+    /**
+     *
+     * @param startConfigurationPages
+     * @param configurationPagesData8Bytes
+     * @return false in case of any errors
+     */
+    public static boolean analyzeConfigurationPages(Enum TagType, int startConfigurationPages, int lastPageOnTag, byte[] configurationPagesData8Bytes) {
+        if ((configurationPagesData8Bytes == null) || (configurationPagesData8Bytes.length != 8)) {
+            Log.e(TAG, "analyzeConfigurationPages failed as configurationPagesData8Bytes is NULL or not of length 8, aborted");
+            return false;
+        }
+        System.out.println("********* start analyze tag configuration *********");
+        ConfigurationPages cp = new ConfigurationPages(TagType, configurationPagesData8Bytes);
+
+        System.out.println("=== AUTH0 byte ===");
+        byte authStartPageByte = cp.getC0Byte3();
+        System.out.println("authStartPageByte: " + byteToHex(authStartPageByte));
+        int authStartPage;
+        if (authStartPageByte == (byte) 0xff) {
+            authStartPage = 255;
+        } else {
+            authStartPage = (int) cp.getC0Byte3();
+        }
+        System.out.println("authStartPage: " + authStartPage);
+        System.out.println("startConfigurationPage: " + startConfigurationPages);
+        System.out.println("Last page on tag: " + lastPageOnTag);
+        // if authStartPage is > lastPageOnTag the tag is not auth protected
+        if (authStartPage > lastPageOnTag) {
+            System.out.println("tag is NOT auth protected");
+        } else {
+            System.out.println("tag is auth protected starting from page " + authStartPage);
+        }
+
+        System.out.println("=== ACCESS byte ===");
+        byte accessByte = cp.getC1Byte0();
+        System.out.println("accessByte: " + byteToHex(accessByte));
+
+        /**
+         * NTAG21x
+         * first (= startConfigurationPages) configuration page
+         * byte 0: MIRROR byte
+         * byte 1: RFUI
+         * byte 2: MIRROR PAGE
+         * byte 3: AUTH0
+         * second (= startConfigurationPages + 1) configuration page
+         * byte 4: ACCESS
+         * byte 5: RFUI
+         * byte 6: RFUI
+         * byte 7: RFUI
+         *
+         * MIFARE Ultralight EV1
+         * first (= startConfigurationPages) configuration page
+         * byte 0: MOD
+         * byte 1: RFUI
+         * byte 2: RFUI
+         * byte 3: AUTH0
+         * second (= startConfigurationPages + 1) configuration page
+         * byte 4: ACCESS
+         * byte 5: VCTID
+         * byte 6: RFUI
+         * byte 7: RFUI
+         *
+         * AUTH0 defines the page address from which the password verification is required. Valid
+         * address range for byte AUTH0 is from 00h to FFh.
+         * If AUTH0 is set to a page address which is higher than the last page from the user
+         * configuration, the password protection is effectively disabled.
+         *
+         * ACCESS defines some settings, defined on bit basis
+         * Bit 7: PROT: One bit inside the ACCESS byte defining the memory protection
+         *              0b ... write access is protected by the password verification
+         *              1b ... read and write access is protected by the password verification
+         * Bit 6: CFGLCK: Write locking bit for the user configuration
+         *                0b ... user configuration open to write access
+         *                1b ... user configuration permanently locked against write access, except
+         *                       PWD and PACK
+         *        Remark: The CFGLCK bit activates the permanent write protection of the first two
+         *        configuration pages. The write lock is only activated after a power cycle of
+         *        NTAG21x. If write protection is enabled, each write attempt leads to a NAK response.
+         * Bit 5: RFUI
+         * Bit 4: NFC_CNT_EN: NFC counter configuration
+         *                    0b ... NFC counter disabled
+         *                    1b ... NFC counter enabled
+         *        If the NFC counter is enabled, the NFC counter will be automatically increased at
+         *        the first READ or FAST_READ command after a power on reset
+         * Bit 3: NFC_CNT_PWD_PROT: NFC counter password protection
+         *                          0b ... NFC counter not protected
+         *                          1b ... NFC counter password protection enabled
+         *        If the NFC counter password protection is enabled, the NFC tag will only respond
+         *        to a READ_CNT command with the NFC counter value after a valid password verification
+         * Bit 2: AUTHLIM
+         * Bit 1: AUTHLIM
+         * Bit 0: AUTHLIM
+         *        Limitation of negative password verification attempts
+         *        000b ... limiting of negative password verification attempts disabled
+         *        001b-111b ... maximum number of negative password verification attempts
+         * Note on bits 4 (NFC_CNT_EN) and 3 (NFC_CNT_PWD_PROT): they are available on an NTAG21x ONLY
+         */
+
+        boolean protEnabled = testBit(accessByte, 7);
+        System.out.println("The PROT bit 7 is enabled : " + protEnabled + " < true means: auth protection - if set - is read & write >");
+
+        boolean cfglckEnabled = testBit(accessByte, 6);
+        System.out.println("The CFGLCK bit 6 is enabled : " + cfglckEnabled + " < true means: user configuration is LOCKED to write access >");
+
+        if (TagType == ConfigurationPages.TagType.NTAG21x) {
+            boolean nfc_cnt_enEnabled = testBit(accessByte, 4);
+            System.out.println("The NFC_CNT_EN bit 5 is enabled : " + nfc_cnt_enEnabled + " < true means: the NFC Read Counter IS enabled >");
+            boolean nfc_cnt_pwd_protEnabled = testBit(accessByte, 3);
+            System.out.println("The NFC_CNT_PWD_PROT 4 bit is enabled : " + nfc_cnt_pwd_protEnabled + " < true means: the NFC Read Counter READ command is returning data after a positive authentication >");
+        } else {
+            System.out.println("The NFC_CNT_EN bit 5 is not available on MIFARE Ultralight EV1");
+            System.out.println("The NFC_CNT_PWD_PROT bit 4 is not available on MIFARE Ultralight EV1");
+        }
+
+        boolean authLim2 = testBit(accessByte, 2);
+        boolean authLim1 = testBit(accessByte, 1);
+        boolean authLim0 = testBit(accessByte, 0);
+        System.out.println("AuthLim 2: " + authLim2 + " AuthLim 1: " + authLim1 + " AuthLim0: " + authLim0);
+        int authLimInt = 0;
+        if (authLim0) authLimInt += 1;
+        if (authLim1) authLimInt += 2;
+        if (authLim2) authLimInt += 4;
+        System.out.println("AuthLim is: " + authLimInt);
+
+
+        System.out.println("********* end analyze tag configuration *********");
+        return true;
+    }
+
+
+
+    // todo exclude for final release
 
     // verify the NTAG21x Elliptic Curve Signature
     final static String publicKeyNxpX = "494E1A386D3D3CFE3DC10E5DE68A499B";

@@ -155,7 +155,43 @@ be aware that each device may have a different buffer size and you cannot rely o
 
 ### Read Counter Command 0x39h
 
+Description for MIFARE Ultralight EV1:
 
+The READ_CNT command is used to read out the current value of one of the 3 one-way counters of the 
+MF0ULx1 (Ultralight EV1). The command has a single argument specifying the counter number and returns 
+the 24-bit counter value of the corresponding counter. The counters are always readable, independent 
+on the password protection settings.
+
+Description for NTAG21:
+
+The READ_CNT command is used to read out the current value of the NFC one-way counter of the NTAG213, 
+NTAG215 and NTAG216. The command has a single argument specifying the counter number and returns the 
+24-bit counter value of the corresponding counter. If the NFC_CNT_PWD_PROT bit is set to 1b the counter 
+is password protected and can only be read with the READ_CNT command after a previous valid password 
+authentication (see Section 10.7).
+
+The following conditions apply if the NFC counter is password protected:
+- if NTAG21x is in the ACTIVE state: Response to the READ_CNT command results in a NAK response
+- if NTAG21x is in the AUTHENTICATED state: Response to the READ_CNT command is the current counter value plus CRC
+
+NTAG21x features a NFC counter function. This function enables NTAG21x to automatically increase the 
+24 bit counter value, triggered by the first valid
+- READ command or
+- FAST-READ command
+after the NTAG21x tag is powered by an RF field.
+
+Once the NFC counter has reached the maximum value of FF FF FF hex, the NFC counter value will not 
+change any more. The NFC counter is enabled or disabled with the NFC_CNT_EN bit (see Section 8.5.7). 
+The actual NFC counter value can be read with
+• READ_CNT command or
+• NFC counter mirror feature
+
+The reading of the NFC counter (by READ_CNT command or with the NFC counter mirror) can also be protected 
+with the password authentication. The NFC counter password protection is enabled or disabled with the 
+NFC_CNT_PWD_PROT bit (see Section 8.5.7).
+
+You can use the same command for both tag types, and in case of an NTAG21x you need to use the counter 
+address 0x02h.
 
 ### Read Signature Command: 
 

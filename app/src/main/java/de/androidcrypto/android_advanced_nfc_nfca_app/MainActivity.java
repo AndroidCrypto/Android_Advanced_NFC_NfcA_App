@@ -1,10 +1,14 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.analyzeConfigurationPages;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.checkResponse;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.fastReadPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMoreData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getVersion;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.lastExceptionString;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readConfigurationPages;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readCounter;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readCounterInt;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readSignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.resolveCheckResponse;
@@ -113,246 +117,279 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "Connected to the tag using NfcA technology" + "\n";
                 // in connected state we are doing all our jobs
 
-                // run a 'get version' command
-                output += lineDivider + "\n";
-                output += "GET VERSION data" + "\n";
-                byte[] getVersionData = getVersion(nfcA);
-                // Get Version data: 0004040201001303
-                boolean getVersionSuccess = false;
-                tagIdentificationAtqaSakSuccess = false;
-                if (getVersionData == null) {
-                    output += "Could not read the version of the tag, maybe it is read protected or does not provide a Get Version command ?" + "\n";
-                    output += "Exception from operation: " + lastExceptionString + "\n";
-                    // try to identify the tag by atqa and sak values
-                    tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
-                    System.out.println("Tag Identification: " + tagIdentificationAtqaSakSuccess);
+                boolean runGetVersion = true;
+                boolean runReadConfiguration = true;
+                boolean runSetAuthProtectionPage07 = false;
+                boolean runDisableAuthProtection = false;
+                boolean runEnableNfcReadCounter = false;
+                boolean runDisableNfcReadCounter = false;
+                boolean runSetNfcReadCounterPwdProtected = false;
+                boolean runUnsetNfcReadCounterPwdProtected = false;
+                boolean runSetAutProtectionWriteOnly = false;
+                boolean runSetAuthProtectionReadWrite = false;
+                boolean runReadSignature = false;
+                boolean runReadCounter = true;
+                boolean runReadPages03 = true;
+                boolean runReadConfigPages = true;
+                boolean runFastReadComplete = true;
+                boolean runWritePage04 = false;
 
-                } else {
-                    /**
-                     * We got a response but need to check the response data
-                     * in case everything was ok we received the 8 bytes long version data
-                     * but there is a special case: newer NFC tags from NXP will give more
-                     * information on the getVersionCommand that get be included in the 8
-                     * bytes response. This is indicated by a trailing "AF" in the response:
-                     * Example from MIFARE DESFire EV3:
-                     * Get Version data: AF04010133001605
-                     * In this case the card asks the reader to get more data by sending
-                     * an "0xAF" command.
-                     * This is implemented in the following lines
-                     */
-                    System.out.println(printData("getVersionData", getVersionData));
-                    if (getVersionData[0] == (byte) 0xAF) {
-                        output += "Received an 'AF' request -> asking for more data" + "\n";
-                        // we need to repeat the 'more data' command until no more data is provided
-                        byte[] moreData = getMoreData(nfcA);
-                        // skip the trailing 'AF' and concatenate it with moreData to get the full get version data
-                        byte[] shortedGetVersionData = Arrays.copyOfRange(getVersionData, 1, getVersionData.length);
-                        System.out.println(printData("shortedGetVersionData", shortedGetVersionData));
-                        getVersionData = concatenateByteArrays(Arrays.copyOfRange(getVersionData, 1, getVersionData.length), moreData);
-                    }
-                    // in all other cases something went wrong, but those responses are tag type specific
-                    if (getVersionData.length > 2) {
-                        output += "Get Version data: " + bytesToHexNpe(getVersionData) + "\n";
-                        //output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
-                        getVersionSuccess = true;
-                        ti.tagHasGetVersionCommand = true;
-                    } else if (Arrays.equals(getVersionData, hexStringToByteArray("04"))) {
-                        output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
-                        output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
-                        getVersionSuccess = false;
-                                // try to identify the tag by atqa and sak values
-                        tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
-                        System.out.println("Tag Identification 04: " + tagIdentificationAtqaSakSuccess);
-                    } else if (Arrays.equals(getVersionData, hexStringToByteArray("1C"))) {
-                        output += "You probably tried to read a MIFARE DESFire tag. This is possible using another workflow only." + "\n";
-                        output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
-                        getVersionSuccess = false;
+                output += lineDivider + "\n";
+                output += "=== Tasks Overview === " + "\n";
+                output += "= Get Version          " + runGetVersion + "\n";
+                output += "= Read Configuration   " + runReadConfiguration + "\n";
+                output += "= Enable Auth Prot.P07 " + runSetAuthProtectionPage07 + "\n";
+                output += "= Disable Auth Prot    " + runDisableAuthProtection + "\n";
+                output += "= Enable NFC Read Cnt  " + runEnableNfcReadCounter + "\n";
+                output += "= Disable NFC Read Cnt " + runDisableNfcReadCounter + "\n";
+                output += "= Set ReadCnt PWD Prot " + runSetNfcReadCounterPwdProtected + "\n";
+                output += "= UnsetReadCnt PWD Prt " + runUnsetNfcReadCounterPwdProtected + "\n";
+                output += "= Auth Prot. Write     " + runSetAutProtectionWriteOnly + "\n";
+                output += "= Auth Prot. ReadWrite " + runSetAuthProtectionReadWrite + "\n";
+                output += "= Read Counter         " + runReadCounter + "\n";
+                output += "= Read Pages 0..3      " + runReadPages03 + "\n";
+                output += "= Read Config Pages    " + runReadConfigPages + "\n";
+                output += "= FastRead compl.Tag   " + runFastReadComplete + "\n";
+                output += "= Write Page 04        " + runWritePage04 + "\n";
+                output += "=== Tasks Overview End === " + "\n";
+
+                if (runGetVersion) {
+                    // run a 'get version' command
+                    output += lineDivider + "\n";
+                    output += "GET VERSION data" + "\n";
+                    byte[] getVersionData = getVersion(nfcA);
+                    // Get Version data: 0004040201001303
+                    boolean getVersionSuccess = false;
+                    tagIdentificationAtqaSakSuccess = false;
+                    if (getVersionData == null) {
+                        output += "Could not read the version of the tag, maybe it is read protected or does not provide a Get Version command ?" + "\n";
+                        output += "Exception from operation: " + lastExceptionString + "\n";
                         // try to identify the tag by atqa and sak values
                         tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
-                        System.out.println("Tag Identification 1C: " + tagIdentificationAtqaSakSuccess);
-                    } else if (Arrays.equals(getVersionData, hexStringToByteArray("6700"))) {
-                        output += "You probably tried to read a Credit Card tag. This is possible using another workflow only." + "\n";
-                        output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
-                        getVersionSuccess = false;
-                        // try to identify the tag by atqa and sak values
-                        tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
-                        System.out.println("Tag Identification 6700: " + tagIdentificationAtqaSakSuccess);
-                    } else {
-                        getVersionSuccess = false;
-                        output += "The tag responded with an unknown response. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
-                        output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
-                    }
-                }
+                        System.out.println("Tag Identification: " + tagIdentificationAtqaSakSuccess);
 
-                // analyze the get version data
-                output += lineDivider + "\n";
-                if (getVersionSuccess) {
-                    output += "Analyze the get version data" + "\n";
-                    VersionInfo tagVersionData = new VersionInfo(getVersionData);
-                    if (getVersionData.length == 8) {
-                        output += tagVersionData.dump8Bytes();
                     } else {
-                        output += tagVersionData.dump();
+                        /**
+                         * We got a response but need to check the response data
+                         * in case everything was ok we received the 8 bytes long version data
+                         * but there is a special case: newer NFC tags from NXP will give more
+                         * information on the getVersionCommand that get be included in the 8
+                         * bytes response. This is indicated by a trailing "AF" in the response:
+                         * Example from MIFARE DESFire EV3:
+                         * Get Version data: AF04010133001605
+                         * In this case the card asks the reader to get more data by sending
+                         * an "0xAF" command.
+                         * This is implemented in the following lines
+                         */
+                        System.out.println(printData("getVersionData", getVersionData));
+                        if (getVersionData[0] == (byte) 0xAF) {
+                            output += "Received an 'AF' request -> asking for more data" + "\n";
+                            // we need to repeat the 'more data' command until no more data is provided
+                            byte[] moreData = getMoreData(nfcA);
+                            // skip the trailing 'AF' and concatenate it with moreData to get the full get version data
+                            byte[] shortedGetVersionData = Arrays.copyOfRange(getVersionData, 1, getVersionData.length);
+                            System.out.println(printData("shortedGetVersionData", shortedGetVersionData));
+                            getVersionData = concatenateByteArrays(Arrays.copyOfRange(getVersionData, 1, getVersionData.length), moreData);
+                        }
+                        // in all other cases something went wrong, but those responses are tag type specific
+                        if (getVersionData.length > 2) {
+                            output += "Get Version data: " + bytesToHexNpe(getVersionData) + "\n";
+                            //output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                            getVersionSuccess = true;
+                            ti.tagHasGetVersionCommand = true;
+                        } else if (Arrays.equals(getVersionData, hexStringToByteArray("04"))) {
+                            output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
+                            output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
+                            getVersionSuccess = false;
+                            // try to identify the tag by atqa and sak values
+                            tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
+                            System.out.println("Tag Identification 04: " + tagIdentificationAtqaSakSuccess);
+                        } else if (Arrays.equals(getVersionData, hexStringToByteArray("1C"))) {
+                            output += "You probably tried to read a MIFARE DESFire tag. This is possible using another workflow only." + "\n";
+                            output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
+                            getVersionSuccess = false;
+                            // try to identify the tag by atqa and sak values
+                            tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
+                            System.out.println("Tag Identification 1C: " + tagIdentificationAtqaSakSuccess);
+                        } else if (Arrays.equals(getVersionData, hexStringToByteArray("6700"))) {
+                            output += "You probably tried to read a Credit Card tag. This is possible using another workflow only." + "\n";
+                            output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
+                            getVersionSuccess = false;
+                            // try to identify the tag by atqa and sak values
+                            tagIdentificationAtqaSakSuccess = ti.identifyTagOnAtqaSak();
+                            System.out.println("Tag Identification 6700: " + tagIdentificationAtqaSakSuccess);
+                        } else {
+                            getVersionSuccess = false;
+                            output += "The tag responded with an unknown response. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                            output += "received response: " + bytesToHexNpe(getVersionData) + "\n";
+                        }
                     }
-                    // take some information from Get Version
-                    ti.tagMajorName = tagVersionData.tagTypeLookup(tagVersionData.getHardwareType());
-                    // data for NTAG21x
-                    if (ti.tagMajorName.equals(VersionInfo.MajorTagType.NTAG_21x.toString())) {
-                        // get more data for NTAG21x family
-                        if (tagVersionData.getHardStorageSizeRaw() == 15) {
-                            // Get Version data: 0004040201000F03
-                            // it is an NTAG213
-                            ti.tagMinorName = "NTAG213";
-                            ti.userMemory = 144;
-                            ti.userMemoryStartPage = 4;
-                            ti.userMemoryEndPage = 39; // included
-                            ti.tagMemoryEndPage = 44;
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 17) {
-                            // Get Version data: 0004040201001103
-                            // it is an NTAG215
-                            ti.tagMinorName = "NTAG215";
-                            ti.userMemory = 504;
-                            ti.userMemoryStartPage = 4;
-                            ti.userMemoryEndPage = 129; // included
-                            ti.tagMemoryEndPage = 134;
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 19) {
-                            // Get Version data: 0004040201001303
-                            // it is an NTAG216
-                            ti.tagMinorName = "NTAG216";
-                            ti.userMemory = 888;
-                            ti.userMemoryStartPage = 4;
-                            ti.userMemoryEndPage = 225; // included
-                            ti.tagMemoryEndPage = 230;
+
+                    // analyze the get version data
+                    output += lineDivider + "\n";
+                    if (getVersionSuccess) {
+                        output += "Analyze the get version data" + "\n";
+                        VersionInfo tagVersionData = new VersionInfo(getVersionData);
+                        if (getVersionData.length == 8) {
+                            output += tagVersionData.dump8Bytes();
                         } else {
-                            ti.tagMinorName = "NTAG21x Unknown";
-                            ti.userMemory = 0;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0;
+                            output += tagVersionData.dump();
                         }
-                        // general information for NTAG21x family
-                        ti.tagHasFastReadCommand = true;
-                        ti.tagHasAuthentication = true;
-                        ti.tagHasDesAuthenticationSecurity = false;
-                        ti.tagHasPasswordSecurity = true;
-                        ti.tagHasPageLockBytes = true;
-                        ti.tagHasOtpArea = true;
-                        ti.numberOfCounter = 1;
-                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                    } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
-                        if (tagVersionData.getHardStorageSizeRaw() == 11) {
-                            // Get Version data: 0004030101000B03
-                            // it is an Ultralight EV1 with 48 bytes user memory MF0UL11
-                            ti.tagMinorName = "MF0UL11";
-                            ti.userMemory = 48;
-                            ti.userMemoryStartPage = 4;
-                            ti.userMemoryEndPage = 15; // included
-                            ti.tagMemoryEndPage = 19;
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 14) {
-                            // Get Version data: 0004030101000E03
-                            // it is an Ultralight EV1 with 128 bytes user memory MF0UL21
-                            ti.tagMinorName = "MF0UL21";
-                            ti.userMemory = 128;
-                            ti.userMemoryStartPage = 4;
-                            ti.userMemoryEndPage = 35; // included
-                            ti.tagMemoryEndPage = 40;
-                        } else {
-                            ti.tagMinorName = "MF0ULx Unknown";
-                            ti.userMemory = 0;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0;
-                        }
-                        // general information for Ultralight EV1 family
-                        ti.tagHasFastReadCommand = true;
-                        ti.tagHasAuthentication = true;
-                        ti.tagHasDesAuthenticationSecurity = false;
-                        ti.tagHasPasswordSecurity = true;
-                        ti.tagHasPageLockBytes = true;
-                        ti.tagHasOtpArea = true;
-                        ti.numberOfCounter = 3;
-                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                    } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire.toString())) {
-                        // this is a MIFARE DESFire tag that requires other commands to work with
-                        // just analyzing some response data to identify the tag
-                        // get the sub type EV1 / EV2 / EV3
-                        String desfireSubType;
-                        if (tagVersionData.getHardwareVersionMajor() == 1) {
-                            // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722 (EV1 2K)
-                            desfireSubType = "EV1";
-                        } else if (tagVersionData.getHardwareVersionMajor() == 18) {
-                            desfireSubType = "EV2";
-                        } else if (tagVersionData.getHardwareVersionMajor() == 51) {
-                            desfireSubType = "EV3";
-                        } else {
-                            desfireSubType = "EVx (unknown)";
-                        }
-                        // get the storage size
-                        if (tagVersionData.getHardStorageSizeRaw() == 22) {
-                            // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722
-                            // it is an DESFire EVx 2K with 2048 bytes user memory
-                            ti.tagMinorName = "DESFire " + desfireSubType + " 2K";
-                            ti.userMemory = 2048;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0; // included
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 24) {
-                            // Get Version data: 04010112001605040101020116050004464BDAD37580CF5B9665003521
-                            // it is an DESFire EVx 4K with 4096 bytes user memory
-                            ti.tagMinorName = "DESFire " + desfireSubType + " 4K";
-                            ti.userMemory = 4096;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0; // included
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 26) {
-                            // it is an DESFire EVx 8K with 8192 bytes user memory
-                            ti.tagMinorName = "DESFire " + desfireSubType + " 8K";
-                            ti.userMemory = 8196;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0; // included
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 28) {
-                            // it is an DESFire EVx 16K with 4096 bytes user memory
-                            ti.tagMinorName = "DESFire " + desfireSubType + " 16K";
-                            ti.userMemory = 16384;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0; // included
-                        } else if (tagVersionData.getHardStorageSizeRaw() == 30) {
-                            // it is an DESFire EVx 32K with 4096 bytes user memory
-                            ti.tagMinorName = "DESFire " + desfireSubType + " 32K";
-                            ti.userMemory = 32768;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0; // included
-                        } else {
-                            ti.tagMinorName = "DESFire " + desfireSubType + " unknown memory";
-                            ti.userMemory = 0;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0;
-                        }
-                        // general information for DESFire EVx family
-                        ti.tagHasFastReadCommand = false;
-                        ti.tagHasAuthentication = false;
-                        ti.tagHasDesAuthenticationSecurity = false;
-                        ti.tagHasPasswordSecurity = false;
-                        ti.tagHasPageLockBytes = false;
-                        ti.tagHasOtpArea = false;
-                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                    } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire_Light.toString())) {
-                        // unfortunately the DESFire light tag does not respond on Get Version command
-                        // when using the NfcA technology (just when using IsoDep class), so this is
-                        // just a stub and usually this is never called
-                        ti.tagMajorName = "DESFire light";
-                        ti.tagMinorName = "DESFire light 640 bytes";
-                        ti.userMemory = 640;
-                        ti.userMemoryStartPage = 0;
-                        ti.userMemoryEndPage = 0; // included
-                        ti.tagHasFastReadCommand = false;
-                        ti.tagHasAuthentication = false;
-                        ti.tagHasDesAuthenticationSecurity = false;
-                        ti.tagHasPasswordSecurity = false;
-                        ti.tagHasPageLockBytes = false;
-                        ti.tagHasOtpArea = false;
-                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                    } else {
-                        if (!tagIdentificationAtqaSakSuccess) {
-                            ti.tagMajorName = "Unknown2";
-                            ti.tagMinorName = "Unknown3";
-                            ti.userMemory = 0;
+                        // take some information from Get Version
+                        ti.tagMajorName = tagVersionData.tagTypeLookup(tagVersionData.getHardwareType());
+                        // data for NTAG21x
+                        if (ti.tagMajorName.equals(VersionInfo.MajorTagType.NTAG_21x.toString())) {
+                            // get more data for NTAG21x family
+                            if (tagVersionData.getHardStorageSizeRaw() == 15) {
+                                // Get Version data: 0004040201000F03
+                                // it is an NTAG213
+                                ti.tagMinorName = "NTAG213";
+                                ti.userMemory = 144;
+                                ti.userMemoryStartPage = 4;
+                                ti.userMemoryEndPage = 39; // included
+                                ti.tagMemoryEndPage = 44;
+                                ti.configurationStartPage = 41;
+                                ti.isTag_NTAG21x = true;
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 17) {
+                                // Get Version data: 0004040201001103
+                                // it is an NTAG215
+                                ti.tagMinorName = "NTAG215";
+                                ti.userMemory = 504;
+                                ti.userMemoryStartPage = 4;
+                                ti.userMemoryEndPage = 129; // included
+                                ti.tagMemoryEndPage = 134;
+                                ti.configurationStartPage = 131;
+                                ti.isTag_NTAG21x = true;
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 19) {
+                                // Get Version data: 0004040201001303
+                                // it is an NTAG216
+                                ti.tagMinorName = "NTAG216";
+                                ti.userMemory = 888;
+                                ti.userMemoryStartPage = 4;
+                                ti.userMemoryEndPage = 225; // included
+                                ti.tagMemoryEndPage = 230;
+                                ti.configurationStartPage = 227;
+                                ti.isTag_NTAG21x = true;
+                            } else {
+                                ti.tagMinorName = "NTAG21x Unknown";
+                                ti.userMemory = 0;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0;
+                            }
+                            // general information for NTAG21x family
+                            ti.tagHasFastReadCommand = true;
+                            ti.tagHasAuthentication = true;
+                            ti.tagHasDesAuthenticationSecurity = false;
+                            ti.tagHasPasswordSecurity = true;
+                            ti.tagHasPageLockBytes = true;
+                            ti.tagHasOtpArea = true;
+                            ti.numberOfCounter = 1;
+                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                        } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
+                            if (tagVersionData.getHardStorageSizeRaw() == 11) {
+                                // Get Version data: 0004030101000B03
+                                // it is an Ultralight EV1 with 48 bytes user memory MF0UL11
+                                ti.tagMinorName = "MF0UL11";
+                                ti.userMemory = 48;
+                                ti.userMemoryStartPage = 4;
+                                ti.userMemoryEndPage = 15; // included
+                                ti.tagMemoryEndPage = 19;
+                                ti.configurationStartPage = 16;
+                                ti.isTag_MIFARE_ULTRALIGHT_EV1 = true;
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 14) {
+                                // Get Version data: 0004030101000E03
+                                // it is an Ultralight EV1 with 128 bytes user memory MF0UL21
+                                ti.tagMinorName = "MF0UL21";
+                                ti.userMemory = 128;
+                                ti.userMemoryStartPage = 4;
+                                ti.userMemoryEndPage = 35; // included
+                                ti.tagMemoryEndPage = 40;
+                                ti.configurationStartPage = 37;
+                                ti.isTag_MIFARE_ULTRALIGHT_EV1 = true;
+                            } else {
+                                ti.tagMinorName = "MF0ULx Unknown";
+                                ti.userMemory = 0;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0;
+                            }
+                            // general information for Ultralight EV1 family
+                            ti.tagHasFastReadCommand = true;
+                            ti.tagHasAuthentication = true;
+                            ti.tagHasDesAuthenticationSecurity = false;
+                            ti.tagHasPasswordSecurity = true;
+                            ti.tagHasPageLockBytes = true;
+                            ti.tagHasOtpArea = true;
+                            ti.numberOfCounter = 3;
+                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                        } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire.toString())) {
+                            // this is a MIFARE DESFire tag that requires other commands to work with
+                            // just analyzing some response data to identify the tag
+                            // get the sub type EV1 / EV2 / EV3
+                            String desfireSubType;
+                            if (tagVersionData.getHardwareVersionMajor() == 1) {
+                                // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722 (EV1 2K)
+                                desfireSubType = "EV1";
+                            } else if (tagVersionData.getHardwareVersionMajor() == 18) {
+                                desfireSubType = "EV2";
+                            } else if (tagVersionData.getHardwareVersionMajor() == 51) {
+                                desfireSubType = "EV3";
+                            } else {
+                                desfireSubType = "EVx (unknown)";
+                            }
+                            // get the storage size
+                            if (tagVersionData.getHardStorageSizeRaw() == 22) {
+                                // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722
+                                // it is an DESFire EVx 2K with 2048 bytes user memory
+                                ti.tagMinorName = "DESFire " + desfireSubType + " 2K";
+                                ti.userMemory = 2048;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0; // included
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 24) {
+                                // Get Version data: 04010112001605040101020116050004464BDAD37580CF5B9665003521
+                                // it is an DESFire EVx 4K with 4096 bytes user memory
+                                ti.tagMinorName = "DESFire " + desfireSubType + " 4K";
+                                ti.userMemory = 4096;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0; // included
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 26) {
+                                // it is an DESFire EVx 8K with 8192 bytes user memory
+                                ti.tagMinorName = "DESFire " + desfireSubType + " 8K";
+                                ti.userMemory = 8196;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0; // included
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 28) {
+                                // it is an DESFire EVx 16K with 4096 bytes user memory
+                                ti.tagMinorName = "DESFire " + desfireSubType + " 16K";
+                                ti.userMemory = 16384;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0; // included
+                            } else if (tagVersionData.getHardStorageSizeRaw() == 30) {
+                                // it is an DESFire EVx 32K with 4096 bytes user memory
+                                ti.tagMinorName = "DESFire " + desfireSubType + " 32K";
+                                ti.userMemory = 32768;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0; // included
+                            } else {
+                                ti.tagMinorName = "DESFire " + desfireSubType + " unknown memory";
+                                ti.userMemory = 0;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0;
+                            }
+                            // general information for DESFire EVx family
+                            ti.tagHasFastReadCommand = false;
+                            ti.tagHasAuthentication = false;
+                            ti.tagHasDesAuthenticationSecurity = false;
+                            ti.tagHasPasswordSecurity = false;
+                            ti.tagHasPageLockBytes = false;
+                            ti.tagHasOtpArea = false;
+                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                        } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire_Light.toString())) {
+                            // unfortunately the DESFire light tag does not respond on Get Version command
+                            // when using the NfcA technology (just when using IsoDep class), so this is
+                            // just a stub and usually this is never called
+                            ti.tagMajorName = "DESFire light";
+                            ti.tagMinorName = "DESFire light 640 bytes";
+                            ti.userMemory = 640;
                             ti.userMemoryStartPage = 0;
                             ti.userMemoryEndPage = 0; // included
                             ti.tagHasFastReadCommand = false;
@@ -361,117 +398,385 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             ti.tagHasPasswordSecurity = false;
                             ti.tagHasPageLockBytes = false;
                             ti.tagHasOtpArea = false;
-                            output += "This is an UNKNOWN tag type" + "\n";
-                        }
-                    }
-                } else {
-                    output += "Analyzing of the get version data skipped, using ATQA & SAK tag identification" + "\n";
-                    if (tagIdentificationAtqaSakSuccess) {
-                        output += "Tag is probably of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                    }
-                }
-
-
-                // Read the Elliptic Curve Signature
-                // read a page from the tag
-                output += lineDivider + "\n";
-                output += "Read the Signature" + "\n";
-                byte[] readSignatureResponse = readSignature(nfcA);
-                output += printData("readSignatureResponse", readSignatureResponse) + "\n";
-                output += "For verification the signature please read the docs." + "\n";
-                boolean signatureVerified = false;
-                if (readSignatureResponse == null) {
-                    output += "Signature verification skipped as no signature was given" + "\n";
-                } else {
-                    signatureVerified = verifyNtag21xOriginalitySignature(tagUid, readSignatureResponse);
-                    output += "Result of Originality Signature verification: " + signatureVerified + "\n";
-                }
-
-                // read a page from the tag
-                output += lineDivider + "\n";
-                if (ti.userMemory > 0) {
-                    output += "Read pages from page 04" + "\n";
-                    byte[] pagesData = readPage(nfcA, 2); // page 04 is the first page of the user memory
-                    boolean readSuccess = false;
-                    if (pagesData == null) {
-                        output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
-                        output += "Exception from operation: " + lastExceptionString + "\n";
-                    } else {
-                        // we got a response but need to check the response data
-                        // in case everything was ok we received the full content of 4 pages = 16 bytes
-                        // in all other cases something went wrong, but those responses are tag type specific
-                        if (pagesData.length == 16) {
-                            output += "data from sectors 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
-                            output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
-                            readSuccess = true;
-                        } else if (Arrays.equals(pagesData, hexStringToByteArray("04"))) {
-                            output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                        } else if (Arrays.equals(pagesData, hexStringToByteArray("1C"))) {
-                            output += "You probably tried to read a MIFARE DESFire tag. This is possible using another workflow only." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                        } else if (Arrays.equals(pagesData, hexStringToByteArray("6700"))) {
-                            output += "You probably tried to read a Credit Card tag. This is possible using another workflow only." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
                         } else {
-                            output += "The tag responded with an unknown response. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                            if (!tagIdentificationAtqaSakSuccess) {
+                                ti.tagMajorName = "Unknown2";
+                                ti.tagMinorName = "Unknown3";
+                                ti.userMemory = 0;
+                                ti.userMemoryStartPage = 0;
+                                ti.userMemoryEndPage = 0; // included
+                                ti.tagHasFastReadCommand = false;
+                                ti.tagHasAuthentication = false;
+                                ti.tagHasDesAuthenticationSecurity = false;
+                                ti.tagHasPasswordSecurity = false;
+                                ti.tagHasPageLockBytes = false;
+                                ti.tagHasOtpArea = false;
+                                output += "This is an UNKNOWN tag type" + "\n";
+                            }
                         }
-                    }
-                } else {
-                    output += "The tag is ot readable by the READ command, sorry." + "\n";
-                }
-
-                // fast read the complete tag content
-                output += lineDivider + "\n";
-                if (ti.tagHasFastReadCommand) {
-                    output += "FastRead pages from page 00" + "\n";
-                    //pagesData = fastReadPage(nfcA, 0, 44); // NTAG213 range 00 - 44
-                    //pagesData = fastReadPage(nfcA, 0, 130); // NTAG215 range 00 - 134
-                    //pagesData = fastReadPage(nfcA, 0, 230); // NTAG216 range 00 - 230
-
-                    //don't extend the maxTransceiveLength as it might gets strange data
-                    // simple calculation including some protocol header bytes
-                    int maxFastReadPages = ((maxTransceiveLength - 16) / 4);
-                    System.out.println("maxFastReadPages: " + maxFastReadPages);
-                    // so run this way to read the complete content of the tag
-                    byte[] completeContentFastRead = new byte[0];
-                    System.out.println("completeContentFastRead length: " + completeContentFastRead.length);
-                    System.out.println("ti.tagMemoryEndPage:" + ti.tagMemoryEndPage);
-                    int pagesReadSoFar = 0;
-                    boolean fastReadSuccess = true;
-                    while (pagesReadSoFar < ti.tagMemoryEndPage) {
-                        // if we can't read the remaining data in a 'full' read we are just reading the remaining data
-                        if ((ti.tagMemoryEndPage - pagesReadSoFar) < maxFastReadPages) {
-                            maxFastReadPages = ti.tagMemoryEndPage - pagesReadSoFar + 1;
-                            System.out.println("Corrected maxFastReadPages to: " + maxFastReadPages);
-                        }
-                        System.out.println("fastReadContent from " + pagesReadSoFar + " to " + (pagesReadSoFar + maxFastReadPages - 1));
-                        byte[] contentRead = fastReadPage(nfcA, pagesReadSoFar, (pagesReadSoFar + maxFastReadPages - 1));
-                        System.out.println(printData("contentRead", contentRead));
-                        //System.out.println("contentRead length: " + contentRead.length);
-                        System.out.println("(maxFastReadPages * ti.bytesPerPage): " + (maxFastReadPages * ti.bytesPerPage));
-                        // did we receive all data ?
-                        if ((contentRead != null) && (contentRead.length == (maxFastReadPages * ti.bytesPerPage))) {
-                            // we received the complete content
-                            completeContentFastRead = concatenateByteArrays(completeContentFastRead, contentRead);
-                            pagesReadSoFar += maxFastReadPages;
-                        } else {
-                            fastReadSuccess = false;
-                            pagesReadSoFar = ti.tagMemoryEndPage; // end reading
-                        }
-                    }
-                    if (!fastReadSuccess) {
-                        output += "Error while reading the complete content of the tag, e.g. some parts of the tag might be read protected" + "\n";
-                        output += "This is the skipped content:\n" + printData("skipped tag content", completeContentFastRead) + "\n";
                     } else {
-                        output += printData("Full tag content", completeContentFastRead) + "\n";
+                        output += "Analyzing of the get version data skipped, using ATQA & SAK tag identification" + "\n";
+                        if (tagIdentificationAtqaSakSuccess) {
+                            output += "Tag is probably of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                        }
                     }
-                } else {
-                    output += "FastRead skipped, tag has no command" + "\n";
                 }
 
+                if (runReadConfiguration) {
+                    // analyze the configuration
+                    output += lineDivider + "\n";
+                    output += "Analyze the Configuration" + "\n";
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        byte[] configurationPages = readConfigurationPages(nfcA, ti.configurationStartPage);
+                        output += printData("configurationPages", configurationPages) + "\n";
+                        boolean analyzeConfigPagesSuccess;
+                        if (ti.isTag_NTAG21x) {
+                            analyzeConfigPagesSuccess = analyzeConfigurationPages(ConfigurationPages.TagType.NTAG21x, ti.configurationStartPage, ti.tagMemoryEndPage, configurationPages);
+                        } else {
+                            analyzeConfigPagesSuccess = analyzeConfigurationPages(ConfigurationPages.TagType.Ultralight_EV1, ti.configurationStartPage, ti.tagMemoryEndPage, configurationPages);
+                        }
+                        output += "Configuration pages analyzed: " + analyzeConfigPagesSuccess + "\n";
+                        ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                        output += cp.dump() + "\n";
 
+                        if (runSetAuthProtectionPage07) {
+                            output += "Enable AuthProtection to pages 07ff" + "\n";
+                            //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                            if (cp.isValid()) {
+                                cp.setAuthProtectionPage(7);
+                                //
+                                byte[] configPage0 = cp.getConfigurationPage0();
+                                byte[] configPage1 = cp.getConfigurationPage1();
+                                output += printData("Configuration Page 0", configPage0) + "\n";
+                                output += printData("Configuration Page 1", configPage1) + "\n";
+                                // just need to write configuration page 1
+                                byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                if (checkResponse(writeConfig1Response[0])){
+                                    output += "Tag response is ACK -> Success" + "\n";
+                                } else {
+                                    output += "Tag response is NAK -> FAILURE" + "\n";
+                                }
+                            } else {
+                                output += "Configuration Pages are invalid, skipped" + "\n";
+                            }
+                        }
+
+                        if (runDisableAuthProtection) {
+                            output += "Disable AuthProtection" + "\n";
+                            //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                            if (cp.isValid()) {
+                                cp.disableAuthProtectionPage();
+                                //
+                                byte[] configPage0 = cp.getConfigurationPage0();
+                                byte[] configPage1 = cp.getConfigurationPage1();
+                                output += printData("Configuration Page 0", configPage0) + "\n";
+                                output += printData("Configuration Page 1", configPage1) + "\n";
+                                // just need to write configuration page 1
+                                byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                if (checkResponse(writeConfig1Response[0])){
+                                    output += "Tag response is ACK -> Success" + "\n";
+                                } else {
+                                    output += "Tag response is NAK -> FAILURE" + "\n";
+                                }
+                            } else {
+                                output += "Configuration Pages are invalid, skipped" + "\n";
+                            }
+                        }
+
+
+                        if (runEnableNfcReadCounter) {
+                            if (ti.isTag_NTAG21x) {
+                                output += "Enable NFC Read Counter on NTAG21x" + "\n";
+                                //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                                if (cp.isValid()) {
+                                    cp.enableNfcReadCounter();
+                                    //
+                                    byte[] configPage0 = cp.getConfigurationPage0();
+                                    byte[] configPage1 = cp.getConfigurationPage1();
+                                    output += printData("Configuration Page 0", configPage0) + "\n";
+                                    output += printData("Configuration Page 1", configPage1) + "\n";
+                                    // just need to write configuration page 1
+                                    byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                    output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                    if (checkResponse(writeConfig1Response[0])){
+                                        output += "Tag response is ACK -> Success" + "\n";
+                                    } else {
+                                        output += "Tag response is NAK -> FAILURE" + "\n";
+                                    }
+                                } else {
+                                    output += "Configuration Pages are invalid, skipped" + "\n";
+                                }
+                            }
+                        }
+
+                        if (runDisableNfcReadCounter) {
+                            if (ti.isTag_NTAG21x) {
+                                output += "Disable NFC Read Counter on NTAG21x" + "\n";
+                                //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                                if (cp.isValid()) {
+                                    cp.disableNfcReadCounter();
+                                    //
+                                    byte[] configPage0 = cp.getConfigurationPage0();
+                                    byte[] configPage1 = cp.getConfigurationPage1();
+                                    output += printData("Configuration Page 0", configPage0) + "\n";
+                                    output += printData("Configuration Page 1", configPage1) + "\n";
+                                    // just need to write configuration page 1
+                                    byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                    output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                    if (checkResponse(writeConfig1Response[0])){
+                                        output += "Tag response is ACK -> Success" + "\n";
+                                    } else {
+                                        output += "Tag response is NAK -> FAILURE" + "\n";
+                                    }
+                                } else {
+                                    output += "Configuration Pages are invalid, skipped" + "\n";
+                                }
+                            }
+                        }
+
+                        if (runSetNfcReadCounterPwdProtected) {
+                            // todo to implement
+                        }
+
+                        if (runUnsetNfcReadCounterPwdProtected) {
+                            // todo to implement
+                        }
+
+                        // running on NTAG21x and Ultralight EV1
+                        if (runSetAutProtectionWriteOnly) {
+                                output += "Auth Protection Write Only" + "\n";
+                                //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                                if (cp.isValid()) {
+                                    cp.setAuthProtectionWriteOnly();
+                                    //
+                                    byte[] configPage0 = cp.getConfigurationPage0();
+                                    byte[] configPage1 = cp.getConfigurationPage1();
+                                    output += printData("Configuration Page 0", configPage0) + "\n";
+                                    output += printData("Configuration Page 1", configPage1) + "\n";
+                                    // just need to write configuration page 1
+                                    byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                    output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                    if (checkResponse(writeConfig1Response[0])){
+                                        output += "Tag response is ACK -> Success" + "\n";
+                                    } else {
+                                        output += "Tag response is NAK -> FAILURE" + "\n";
+                                    }
+                                } else {
+                                    output += "Configuration Pages are invalid, skipped" + "\n";
+                                }
+                        }
+                        if (runSetAuthProtectionReadWrite) {
+                            output += "Auth Protection Read&Write" + "\n";
+                            //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                            if (cp.isValid()) {
+                                cp.setAuthProtectionReadWrite();
+                                //
+                                byte[] configPage0 = cp.getConfigurationPage0();
+                                byte[] configPage1 = cp.getConfigurationPage1();
+                                output += printData("Configuration Page 0", configPage0) + "\n";
+                                output += printData("Configuration Page 1", configPage1) + "\n";
+                                // just need to write configuration page 1
+                                byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                if (checkResponse(writeConfig1Response[0])){
+                                    output += "Tag response is ACK -> Success" + "\n";
+                                } else {
+                                    output += "Tag response is NAK -> FAILURE" + "\n";
+                                }
+                            } else {
+                                output += "Configuration Pages are invalid, skipped" + "\n";
+                            }
+                        }
+
+                    } else {
+                        output += "Analyzing the Configuration pages is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                    }
+                }
+
+                if (runReadSignature) {
+                    // Read the Elliptic Curve Signature
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        // read a page from the tag
+                        output += lineDivider + "\n";
+                        output += "Read the Signature" + "\n";
+                        byte[] readSignatureResponse = readSignature(nfcA);
+                        output += printData("readSignatureResponse", readSignatureResponse) + "\n";
+                        output += "For verification the signature please read the docs." + "\n";
+                        boolean signatureVerified = false;
+                        if (readSignatureResponse == null) {
+                            output += "Signature verification skipped as no signature was given" + "\n";
+                        } else {
+                            signatureVerified = verifyNtag21xOriginalitySignature(tagUid, readSignatureResponse);
+                            output += "Result of Originality Signature verification: " + signatureVerified + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Signature is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadCounter) {
+                    // read the counter(s) from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        output += "Read the Counter 2" + "\n";
+                        byte[] readCounterResponse = readCounter(nfcA, 2);
+                        output += printData("readCounter 2 Response", readCounterResponse) + "\n";
+                        int readCounterResponseInt = readCounterInt(nfcA, 2);
+                        output += "readCounter 2 Response: " + readCounterResponseInt + "\n";
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Counter is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+
+                    // restricted to MIFARE Ultralight EV1
+                    if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
+                        output += lineDivider + "\n";
+                        output += "Read the Counter 0" + "\n";
+                        byte[] readCounterResponse = readCounter(nfcA, 0);
+                        output += printData("readCounter 0 Response", readCounterResponse) + "\n";
+                        int readCounterResponseInt = readCounterInt(nfcA, 0);
+                        output += "readCounter 0 Response: " + readCounterResponseInt + "\n";
+                        output += "Read the Counter 1" + "\n";
+                        readCounterResponse = readCounter(nfcA, 1);
+                        output += printData("readCounter 1 Response", readCounterResponse) + "\n";
+                        readCounterResponseInt = readCounterInt(nfcA, 1);
+                        output += "readCounter 1 Response: " + readCounterResponseInt + "\n";
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Counter 0 + 1 is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadPages03) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read pages from page 00" + "\n";
+                            byte[] pagesData = readPage(nfcA, 00); // page 04 is the first page of the user memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from pages 0, 1, 2 and 3: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadConfigPages) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read Config pages" + "\n";
+                            byte[] pagesData = readPage(nfcA, ti.configurationStartPage); // page 04 is the first page of the user memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from config pages: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runFastReadComplete) {
+                    // fast read the complete tag content
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.tagHasFastReadCommand) {
+                            output += "FastRead pages from page 00" + "\n";
+                            //pagesData = fastReadPage(nfcA, 0, 44); // NTAG213 range 00 - 44
+                            //pagesData = fastReadPage(nfcA, 0, 130); // NTAG215 range 00 - 134
+                            //pagesData = fastReadPage(nfcA, 0, 230); // NTAG216 range 00 - 230
+
+                            //don't extend the maxTransceiveLength as it might gets strange data
+                            // simple calculation including some protocol header bytes
+                            int maxFastReadPages = ((maxTransceiveLength - 16) / 4);
+                            System.out.println("maxFastReadPages: " + maxFastReadPages);
+                            // so run this way to read the complete content of the tag
+                            byte[] completeContentFastRead = new byte[0];
+                            System.out.println("completeContentFastRead length: " + completeContentFastRead.length);
+                            System.out.println("ti.tagMemoryEndPage:" + ti.tagMemoryEndPage);
+                            int pagesReadSoFar = 0;
+                            boolean fastReadSuccess = true;
+                            while (pagesReadSoFar < ti.tagMemoryEndPage) {
+                                // if we can't read the remaining data in a 'full' read we are just reading the remaining data
+                                if ((ti.tagMemoryEndPage - pagesReadSoFar) < maxFastReadPages) {
+                                    maxFastReadPages = ti.tagMemoryEndPage - pagesReadSoFar + 1;
+                                    System.out.println("Corrected maxFastReadPages to: " + maxFastReadPages);
+                                }
+                                System.out.println("fastReadContent from " + pagesReadSoFar + " to " + (pagesReadSoFar + maxFastReadPages - 1));
+                                byte[] contentRead = fastReadPage(nfcA, pagesReadSoFar, (pagesReadSoFar + maxFastReadPages - 1));
+                                System.out.println(printData("contentRead", contentRead));
+                                //System.out.println("contentRead length: " + contentRead.length);
+                                System.out.println("(maxFastReadPages * ti.bytesPerPage): " + (maxFastReadPages * ti.bytesPerPage));
+                                // did we receive all data ?
+                                if ((contentRead != null) && (contentRead.length == (maxFastReadPages * ti.bytesPerPage))) {
+                                    // we received the complete content
+                                    completeContentFastRead = concatenateByteArrays(completeContentFastRead, contentRead);
+                                    pagesReadSoFar += maxFastReadPages;
+                                } else {
+                                    fastReadSuccess = false;
+                                    pagesReadSoFar = ti.tagMemoryEndPage; // end reading
+                                }
+                            }
+                            if (!fastReadSuccess) {
+                                output += "Error while reading the complete content of the tag, e.g. some parts of the tag might be read protected" + "\n";
+                                output += "This is the skipped content:\n" + printData("skipped tag content", completeContentFastRead) + "\n";
+                            } else {
+                                output += printData("Full tag content", completeContentFastRead) + "\n";
+                            }
+                        } else {
+                            output += "FastRead skipped, tag has no command" + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "FasrRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
 
 /*
 maxTranceiveLength = 253 / 4 = 63.25 -> read 60 pages only
@@ -560,76 +865,34 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                 }
 */
 
-                //
-                output += lineDivider + "\n";
-                output += "write on page 04" + "\n";
-                byte[] dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
-                byte[] writeResponse = writePage(nfcA, 4, dataToWrite);
-                output += printData("writeToPage 04 response", writeResponse) + "\n";
-                // I'm using byte 0 only for checking
-                output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
-                output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
+                if (runWritePage04) {
+                    output += lineDivider + "\n";
+                    output += "write on page 04" + "\n";
+                    byte[] dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
+                    byte[] writeResponse = writePage(nfcA, 4, dataToWrite);
+                    output += printData("writeToPage 04 response", writeResponse) + "\n";
+                    // I'm using byte 0 only for checking
+                    output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
+                    output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
 
-                output += lineDivider + "\n";
-                output += "test for data too long" + "\n";
-                dataToWrite = "12345".getBytes(StandardCharsets.UTF_8);
-                writeResponse = writePage(nfcA, 4, dataToWrite);
-                output += printData("writeToPage 04 response", writeResponse) + "\n";
-                // I'm using byte 0 only for checking
-                output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
-                output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
+                    output += lineDivider + "\n";
+                    output += "test for data too long" + "\n";
+                    dataToWrite = "12345".getBytes(StandardCharsets.UTF_8);
+                    writeResponse = writePage(nfcA, 4, dataToWrite);
+                    output += printData("writeToPage 04 response", writeResponse) + "\n";
+                    // I'm using byte 0 only for checking
+                    output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
+                    output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
 
-                output += lineDivider + "\n";
-                output += "test for page outside of tag range" + "\n";
-                dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
-                writeResponse = writePage(nfcA, 254, dataToWrite);
-                output += printData("writeToPage 04 response", writeResponse) + "\n";
-                // I'm using byte 0 only for checking
-                output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
-                output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
-
-/*
-                // Read the Elliptic Curve Signature
-                // read a page from the tag
-                output += lineDivider + "\n";
-                output += "Read the Signature" + "\n";
-                byte[] readSignatureResponse = readSignature(nfcA);
-                output += printData("readSignatureResponse", readSignatureResponse);
-                */
-                /*
-                if (ti.userMemory > 0) {
-                    output += "Read pages from page 04" + "\n";
-                    byte[] pagesData = readPage(nfcA, 2); // page 04 is the first page of the user memory
-                    boolean readSuccess = false;
-                    if (pagesData == null) {
-                        output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
-                        output += "Exception from operation: " + lastExceptionString + "\n";
-                    } else {
-                        // we got a response but need to check the response data
-                        // in case everything was ok we received the full content of 4 pages = 16 bytes
-                        // in all other cases something went wrong, but those responses are tag type specific
-                        if (pagesData.length == 16) {
-                            output += "data from sectors 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
-                            output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
-                            readSuccess = true;
-                        } else if (Arrays.equals(pagesData, hexStringToByteArray("04"))) {
-                            output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                        } else if (Arrays.equals(pagesData, hexStringToByteArray("1C"))) {
-                            output += "You probably tried to read a MIFARE DESFire tag. This is possible using another workflow only." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                        } else if (Arrays.equals(pagesData, hexStringToByteArray("6700"))) {
-                            output += "You probably tried to read a Credit Card tag. This is possible using another workflow only." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                        } else {
-                            output += "The tag responded with an unknown response. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
-                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                        }
-                    }
-                } else {
-                    output += "The tag is ot readable by the READ command, sorry." + "\n";
+                    output += lineDivider + "\n";
+                    output += "test for page outside of tag range" + "\n";
+                    dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
+                    writeResponse = writePage(nfcA, 254, dataToWrite);
+                    output += printData("writeToPage 04 response", writeResponse) + "\n";
+                    // I'm using byte 0 only for checking
+                    output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
+                    output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
                 }
-                */
 
                 nfcA.close();
             } catch (IOException e) {
