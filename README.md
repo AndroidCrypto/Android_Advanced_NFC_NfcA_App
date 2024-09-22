@@ -3,6 +3,10 @@
 ## data sheets of the described NFC tags
 
 - NXP NTAG21x tags (NTAG213, NTAG215 and NTAG216): https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf
+- NTAG 21x features and hints (AN13089): https://www.puntoflotante.net/AN13089.pdf
+- NTAG21x Originality Signature Validation (AN11350): no direct download, available under Non Disclosure Agreement only
+- NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints (AN12196): https://www.nxp.com/docs/en/application-note/AN12196.pdf 
+Note: this document explains on pages 50 to 51 the Elliptic Curve signature verification process
 - NXP Ultralight C (MF0ICU2): https://www.nxp.com/docs/en/data-sheet/MF0ICU2.pdf
 - NXP Ultralight EV1 (MF0ULX1): https://www.nxp.com/docs/en/data-sheet/MF0ULX1.pdf
 - NXP MIFARE DESFire EV3 short data sheet (MF3D_H_X3_SDS): https://www.nxp.com/docs/en/data-sheet/MF3D_H_X3_SDS.pdf
@@ -106,7 +110,7 @@ pages holding those two values, all *00h* bytes are replied to the NFC device in
 
 ### Fast Read Command 0x3Ah
 
-he FAST_READ command requires a start page address and an end page address and returns the all 
+The FAST_READ command requires a start page address and an end page address and returns the all 
 n*4 bytes of the addressed pages. For example if the start address is 03h and the end address is 07h 
 then pages 03h, 04h, 05h, 06h and 07h are returned. If the addressed page is outside of accessible 
 area, NTAG21x replies a NAK.
@@ -155,6 +159,43 @@ be aware that each device may have a different buffer size and you cannot rely o
 
 ### Read Signature Command: 
 
+*The READ_SIG command returns an IC specific, 32-byte ECC signature, to verify NXP Semiconductors as 
+the silicon vendor. The signature is programmed at chip production and cannot be changed afterwards.*
+
+*Details on how to check the signature value are provided in the following Application note
+AN11350 NTAG21x Originality Signature Validation — Application note, BU-ID Document number 2604.*
+
+*It is foreseen to offer an online and offline way to verify originality of NTAG21x.*
+
+Unfortunately, the named document is available under a "Non Disclosure Agreement" only, sorry. But 
+there is a light at the end of the NDA tunnel (https://community.nxp.com/t5/NFC/How-to-check-NXP-signature-on-NTAG413/m-p/878885?commentID=1119360&et=watches.email.thread#comment-1119360):
+
+*... from now I think that also you should look this application note it explains in a better way how 
+to check orginality signature in both asymmetric and symmetric, it is the same for 413. The new product 
+NTAG 424 offers the same features as 413 and more. Please check section 8.2 ...*
+
+NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints (AN12196): https://www.nxp.com/docs/en/application-note/AN12196.pdf. 
+Note: this document explains on pages 50 to 51 the Elliptic Curve signature verification process
+
+```plaintext
+UID length: 7 data: 04BE7982355B80
+readSignatureResponse length: 32 data: F2DE84A291222F6A04F663D48104D1F523DA00B9A951CC6126CE1BAA8A9E6A50
+Result of Originality Signature verification: true
+
+Fake NTAG213 tag:
+UID length: 7 data: 1D424AB9950000
+readSignatureResponse length: 32 data: 1D424A9DB99500001D424A9DB99500001D424A9DB99500001D424A9DB9950000
+Result of Originality Signature verification: false
+
+Second Fake NTAG213 tag:
+UID length: 7 data: 1DAC2BB9950000
+readSignatureResponse length: 32 data: 1DAC2B12B99500001DAC2B12B99500001DAC2B12B99500001DAC2B12B9950000
+UID length: 7 data:                    1DAC2BB9950000
+                                                       1DAC2BB9950000
+                                                                       1DAC2BB9950000
+                                                                                       1DAC2BB9950000                        
+Result of Originality Signature verification: false
+```
 
 ### NTAG ACK and NAK responses
 

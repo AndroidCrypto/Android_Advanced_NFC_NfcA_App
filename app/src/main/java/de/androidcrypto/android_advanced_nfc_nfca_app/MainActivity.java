@@ -6,7 +6,9 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMor
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getVersion;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.lastExceptionString;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readPage;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readSignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.resolveCheckResponse;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.verifyNtag21xOriginalitySignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writePage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
@@ -369,6 +371,22 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 }
 
+
+                // Read the Elliptic Curve Signature
+                // read a page from the tag
+                output += lineDivider + "\n";
+                output += "Read the Signature" + "\n";
+                byte[] readSignatureResponse = readSignature(nfcA);
+                output += printData("readSignatureResponse", readSignatureResponse) + "\n";
+                output += "For verification the signature please read the docs." + "\n";
+                boolean signatureVerified = false;
+                if (readSignatureResponse == null) {
+                    output += "Signature verification skipped as no signature was given" + "\n";
+                } else {
+                    signatureVerified = verifyNtag21xOriginalitySignature(tagUid, readSignatureResponse);
+                    output += "Result of Originality Signature verification: " + signatureVerified + "\n";
+                }
+
                 // read a page from the tag
                 output += lineDivider + "\n";
                 if (ti.userMemory > 0) {
@@ -431,7 +449,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         System.out.println("fastReadContent from " + pagesReadSoFar + " to " + (pagesReadSoFar + maxFastReadPages - 1));
                         byte[] contentRead = fastReadPage(nfcA, pagesReadSoFar, (pagesReadSoFar + maxFastReadPages - 1));
                         System.out.println(printData("contentRead", contentRead));
-                        System.out.println("contentRead length: " + contentRead.length);
+                        //System.out.println("contentRead length: " + contentRead.length);
                         System.out.println("(maxFastReadPages * ti.bytesPerPage): " + (maxFastReadPages * ti.bytesPerPage));
                         // did we receive all data ?
                         if ((contentRead != null) && (contentRead.length == (maxFastReadPages * ti.bytesPerPage))) {
@@ -494,9 +512,11 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                 }
 */
 
+                // todo make this flexible for different tags
                 // analyze ACCESS byte
                 // todo check for NTAG213
                 // AUTH0 is on page 41 byte 4, ACCESS on page 42 byte 0
+                /*
                 byte[] pagesData41 = readPage(nfcA, 41);
                 System.out.println(printData("pagesData41", pagesData41));
                 byte auth0 = pagesData41[3];
@@ -538,7 +558,7 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                 } else {
                     output += "Access Byte Bit 7 0 Write Access AUTH prot" + "\n";
                 }
-
+*/
 
                 //
                 output += lineDivider + "\n";
@@ -568,6 +588,48 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                 output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
                 output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
 
+/*
+                // Read the Elliptic Curve Signature
+                // read a page from the tag
+                output += lineDivider + "\n";
+                output += "Read the Signature" + "\n";
+                byte[] readSignatureResponse = readSignature(nfcA);
+                output += printData("readSignatureResponse", readSignatureResponse);
+                */
+                /*
+                if (ti.userMemory > 0) {
+                    output += "Read pages from page 04" + "\n";
+                    byte[] pagesData = readPage(nfcA, 2); // page 04 is the first page of the user memory
+                    boolean readSuccess = false;
+                    if (pagesData == null) {
+                        output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                        output += "Exception from operation: " + lastExceptionString + "\n";
+                    } else {
+                        // we got a response but need to check the response data
+                        // in case everything was ok we received the full content of 4 pages = 16 bytes
+                        // in all other cases something went wrong, but those responses are tag type specific
+                        if (pagesData.length == 16) {
+                            output += "data from sectors 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
+                            output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                            readSuccess = true;
+                        } else if (Arrays.equals(pagesData, hexStringToByteArray("04"))) {
+                            output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
+                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                        } else if (Arrays.equals(pagesData, hexStringToByteArray("1C"))) {
+                            output += "You probably tried to read a MIFARE DESFire tag. This is possible using another workflow only." + "\n";
+                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                        } else if (Arrays.equals(pagesData, hexStringToByteArray("6700"))) {
+                            output += "You probably tried to read a Credit Card tag. This is possible using another workflow only." + "\n";
+                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                        } else {
+                            output += "The tag responded with an unknown response. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                            output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                        }
+                    }
+                } else {
+                    output += "The tag is ot readable by the READ command, sorry." + "\n";
+                }
+                */
 
                 nfcA.close();
             } catch (IOException e) {
