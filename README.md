@@ -177,6 +177,8 @@ NTAG 424 offers the same features as 413 and more. Please check section 8.2 ...*
 NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints (AN12196): https://www.nxp.com/docs/en/application-note/AN12196.pdf. 
 Note: this document explains on pages 50 to 51 the Elliptic Curve signature verification process
 
+Note: The NTAG 424 document shows **how to run the verification steps** but the NXP's Public Key is wrong !
+
 ```plaintext
 UID length: 7 data: 04BE7982355B80
 readSignatureResponse length: 32 data: F2DE84A291222F6A04F663D48104D1F523DA00B9A951CC6126CE1BAA8A9E6A50
