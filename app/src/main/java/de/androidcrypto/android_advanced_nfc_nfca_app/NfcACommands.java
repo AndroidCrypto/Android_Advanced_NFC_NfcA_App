@@ -7,6 +7,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.intFrom3ByteA
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
 
+import android.nfc.TagLostException;
 import android.nfc.tech.NfcA;
 import android.util.Log;
 
@@ -49,6 +50,10 @@ public class NfcACommands {
     public static final byte NAK_INVALID_AUTHENTICATION_COUNTER_OVERFLOW = 0x04; // this is the response defined by NXP for NTAG21x tags
     public static final byte NAK_EEPROM_WRITE_ERROR = 0x05; // this is the response defined by NXP for NTAG21x tags
     public static final byte NAK_IOEXCEPTION_ERROR = (byte) 0xFF; // this is the response defined by me
+    public static final byte[] DEFAULT_PASSWORD = hexStringToByteArray("FFFFFFFF");
+    public static final byte[] DEFAULT_PACK = hexStringToByteArray("0000");
+    public static final byte[] CUSTOM_PASSWORD = hexStringToByteArray("98765432");
+    public static final byte[] CUSTOM_PACK = hexStringToByteArray("CC00");
 
     /**
      * This allows to read the complete memory = all pages of the tag. If a page is not readable the
@@ -180,6 +185,7 @@ public class NfcACommands {
     /**
      * Reads the counter on an NTAG21x or MIFARE Ultralight EV1 tag and returns an integer value.
      * Please read the explanation on @readCounter() for additional information.
+     *
      * @param nfcA
      * @param counterNumber
      * @return the counter value 0.., in case of any error it returns -1 as value
@@ -199,6 +205,7 @@ public class NfcACommands {
      * The counter on NTAG21x is a READ Counter, meaning it gets increased if a Read Page or Fast
      * Read Page is sent to the tag. This feature needs to get enabled first, so on a tag with fabric
      * settings you will receive an IOException and a NULL byte response.
+     *
      * @param nfcA
      * @param counterNumber
      * @return the 24-bit (3 byte) counter in LSB encoding
@@ -224,6 +231,7 @@ public class NfcACommands {
      * key and the usage of an ECC Signature validation, this is protected under NDA and not
      * shown in this library.
      * This is available on NTAG21x or MIFARE Ultralight EV1 tags.
+     *
      * @param nfcA
      * @return
      */
@@ -268,6 +276,22 @@ public class NfcACommands {
         }
     }
 
+    public static void reconnect(NfcA nfcA) {
+        // this is just an advice - if an error occurs - close the connection and reconnect the tag
+        // https://stackoverflow.com/a/37047375/8166854
+        try {
+            nfcA.close();
+            Log.d(TAG, "Close NfcA");
+        } catch (Exception e) {
+            Log.e(TAG, "Exception on Close NfcA: " + e.getMessage());
+        }
+        try {
+            Log.d(TAG, "Reconnect NfcA");
+            nfcA.connect();
+        } catch (Exception e) {
+            Log.e(TAG, "Exception on Reconnect NfcA: " + e.getMessage());
+        }
+    }
     // todo exclude from final release
 
     /**
@@ -286,6 +310,7 @@ public class NfcACommands {
      * Reads the two configuration pages on an NTAG21x or MIFARE Ultralight EV1 tag.
      * The response is trimmed to the first 2 pages (8 bytes) instead of the full content of
      * 4 pages.
+     *
      * @param nfca
      * @param startConfigurationPages
      * @return 8 bytes for 2 content of configuration page 0 and 1
@@ -365,7 +390,6 @@ public class NfcACommands {
     }
 
     /**
-     *
      * @param startConfigurationPages
      * @param configurationPagesData8Bytes
      * @return false in case of any errors
@@ -493,6 +517,64 @@ public class NfcACommands {
         return true;
     }
 
+    public static boolean authenticatePassword(NfcA nfcA, int passwordPageNumber, byte[] password, byte[] pack) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "authenticatePassword nfcA is NULL, aborted");
+            return false;
+        }
+        if ((password == null) || (password.length != 4)) {
+            Log.e(TAG, "authenticatePassword password is NULL or not of length 4, aborted");
+            return false;
+        }
+        if ((pack == null) || (pack.length != 2)) {
+            Log.e(TAG, "authenticatePassword pack is NULL or not of length 4, aborted");
+            return false;
+        }
+        Log.d(TAG, printData("password", password) + " || " + printData("pack", pack));
+        byte[] response;
+        try {
+            byte[] command = new byte[]{
+                    (byte) 0x1B, // Password Authentication command
+                    password[0],
+                    password[1],
+                    password[2],
+                    password[3]
+            };
+            System.out.println("*** sendPwdAuthData before tranceive");
+            response = nfcA.transceive(command); // response should be 16 bytes = 4 pages
+            Log.d(TAG, printData("response", response));
+            if (response == null) {
+                Log.e(TAG, "Error in authenticatePassword, aborted");
+                // either communication to the tag was lost or a NAK was received
+                return false;
+            } else if ((response.length == 1) && ((response[0] & 0x00A) != 0x00A)) {
+                // NAK response according to Digital Protocol/T2TOP
+                // Log and return
+                Log.e(TAG, "Error in authenticatePassword, aborted");
+                return false;
+            } else {
+                // success: response contains (P)ACK or actual data
+            }
+        } catch (TagLostException e) {
+            // Log and return
+            Log.e(TAG, "authenticatePassword TagLostException: " + e.getMessage());
+            lastExceptionString = "authenticatePassword TagLostException: " + e.getMessage();
+            return false;
+        } catch (IOException e) {
+            Log.e(TAG, "authenticatePassword IOException: " + e.getMessage());
+            lastExceptionString = "authenticatePassword IOException: " + e.getMessage();
+            return false;
+        }
+        if (Arrays.equals(response, pack)) {
+            Log.d(TAG, "authenticatePassword The response EQUALS to PACK, authenticated");
+            return true;
+        } else {
+            Log.d(TAG, "authenticatePassword The response is DIFFERENT to PACK, NOT authenticated");
+            lastExceptionString = "authenticatePassword The response is DIFFERENT to PACK, NOT authenticated";
+            return false;
+        }
+    }
 
 
     // todo exclude for final release

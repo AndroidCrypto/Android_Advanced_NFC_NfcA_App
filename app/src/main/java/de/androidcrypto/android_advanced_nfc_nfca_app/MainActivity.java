@@ -1,6 +1,11 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.CUSTOM_PACK;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.CUSTOM_PASSWORD;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.DEFAULT_PACK;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.DEFAULT_PASSWORD;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.analyzeConfigurationPages;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.authenticatePassword;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.checkResponse;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.fastReadPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMoreData;
@@ -11,6 +16,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readCo
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readCounterInt;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readSignature;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.reconnect;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.resolveCheckResponse;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.verifyNtag21xOriginalitySignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writePage;
@@ -117,7 +123,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "Connected to the tag using NfcA technology" + "\n";
                 // in connected state we are doing all our jobs
 
-                boolean runGetVersion = true;
+                boolean runGetVersion = true; // don't skip this as we need the tag data for later working
+                boolean runAuthenticationDefault = true;
                 boolean runReadConfiguration = true;
                 boolean runSetAuthProtectionPage07 = false;
                 boolean runDisableAuthProtection = false;
@@ -137,6 +144,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += lineDivider + "\n";
                 output += "=== Tasks Overview === " + "\n";
                 output += "= Get Version          " + runGetVersion + "\n";
+                output += "= Authenticate Default " + runAuthenticationDefault + "\n";
                 output += "= Read Configuration   " + runReadConfiguration + "\n";
                 output += "= Enable Auth Prot.P07 " + runSetAuthProtectionPage07 + "\n";
                 output += "= Disable Auth Prot    " + runDisableAuthProtection + "\n";
@@ -421,6 +429,29 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             output += "Tag is probably of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
                         }
                     }
+                }
+
+                if (runAuthenticationDefault) {
+                    // analyze the configuration
+                    output += lineDivider + "\n";
+                    output += "Authenticate with Default Password and PACK" + "\n";
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        boolean authenticationSuccess = authenticatePassword(nfcA, 0, DEFAULT_PASSWORD, DEFAULT_PACK);
+                        output += "authentication with DEFAULT password and PACK: " + authenticationSuccess + "\n";
+
+                        if (!authenticationSuccess) {
+                            reconnect(nfcA);
+                            output += "run authentication with CUSTOM password and PACK" + "\n";
+                            authenticationSuccess = authenticatePassword(nfcA, 0, CUSTOM_PASSWORD, CUSTOM_PACK);
+                            output += "authentication with CUSTOM password and PACK: " + authenticationSuccess + "\n";
+                        }
+
+                    } else {
+                        output += "AAuthenticate with Default Password and PACK is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                    }
+                } else {
+                    output += lineDivider + "\n";
+                    output += "Skipped: Authenticate with Default Password and PACK" + "\n";
                 }
 
                 if (runReadConfiguration) {
