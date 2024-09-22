@@ -279,6 +279,7 @@ public class NfcACommands {
     public static void reconnect(NfcA nfcA) {
         // this is just an advice - if an error occurs - close the connection and reconnect the tag
         // https://stackoverflow.com/a/37047375/8166854
+        Log.d(TAG, "Reconnect to NfcA class is best practise after (Tag Lost) exceptions.");
         try {
             nfcA.close();
             Log.d(TAG, "Close NfcA");
@@ -517,7 +518,7 @@ public class NfcACommands {
         return true;
     }
 
-    public static boolean authenticatePassword(NfcA nfcA, int passwordPageNumber, byte[] password, byte[] pack) {
+    public static boolean authenticatePassword(NfcA nfcA, byte[] password, byte[] pack) {
         // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
             Log.e(TAG, "authenticatePassword nfcA is NULL, aborted");
@@ -574,6 +575,66 @@ public class NfcACommands {
             lastExceptionString = "authenticatePassword The response is DIFFERENT to PACK, NOT authenticated";
             return false;
         }
+    }
+
+    public static boolean changePasswordPack (NfcA nfcA, int passwordPageNumber, byte[] oldPassword4Bytes, byte[] oldPack2Bytes, byte[] newPassword4Bytes, byte[] newPack2Bytes) {
+        // sanity checks
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL, aborted");
+            return false;
+        }
+        if ((oldPassword4Bytes == null) || (oldPassword4Bytes.length != 4)) {
+            Log.e(TAG, "oldPassword is NULL or not of length 4, aborted");
+            return false;
+        }
+        if ((oldPack2Bytes == null) || (oldPack2Bytes.length != 2)) {
+            Log.e(TAG, "oldPack is NULL or not of length 4, aborted");
+            return false;
+        }
+        if ((newPassword4Bytes == null) || (newPassword4Bytes.length != 4)) {
+            Log.e(TAG, "newPassword is NULL or not of length 4, aborted");
+            return false;
+        }
+        if ((newPack2Bytes == null) || (newPack2Bytes.length != 2)) {
+            Log.e(TAG, "newPack is NULL or not of length 4, aborted");
+            return false;
+        }
+        /*
+        Workflow
+        1 authenticate with old password and old pack
+        2 write new password to page
+        3 write new pack to page
+        4 authenticate with new password and new pack
+         */
+        // step 1
+        boolean oldPasswordAuthentication = authenticatePassword(nfcA, oldPassword4Bytes, oldPack2Bytes);
+        if (!oldPasswordAuthentication) {
+            Log.e(TAG, "changePassword step 1 authenticate with old password and pack failed, aborted");
+            return false;
+        }
+        // step 2
+        byte[] writeNewPasswordResponse = writePage(nfcA, passwordPageNumber, newPassword4Bytes);
+        if (writeNewPasswordResponse[0] != ACK) {
+            Log.e(TAG, "changePassword step 2 write new password failed, aborted");
+            return false;
+        }
+        // step 3
+        byte[] newPack = new byte[4]; // we do need a 4 bytes long array, but the new pack is only 2 bytes long
+        System.arraycopy(newPack2Bytes, 0, newPack, 0, 2);
+        byte[] writeNewPackResponse = writePage(nfcA, (passwordPageNumber + 1), newPack);
+        if (writeNewPackResponse[0] != ACK) {
+            Log.e(TAG, "changePassword step 3 write new pack failed, aborted");
+            return false;
+        }
+        // step 4
+        boolean newPasswordAuthentication = authenticatePassword(nfcA, newPassword4Bytes, newPack2Bytes);
+        if (!newPasswordAuthentication) {
+            Log.e(TAG, "changePassword step 4 authenticate with new password and pack failed, aborted");
+            return false;
+        }
+        Log.d(TAG, "changePassword: SUCCESS");
+        return true;
     }
 
 

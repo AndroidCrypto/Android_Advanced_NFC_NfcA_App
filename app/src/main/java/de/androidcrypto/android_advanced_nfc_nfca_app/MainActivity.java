@@ -6,6 +6,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.DEFAUL
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.DEFAULT_PASSWORD;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.analyzeConfigurationPages;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.authenticatePassword;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.changePasswordPack;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.checkResponse;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.fastReadPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMoreData;
@@ -124,8 +125,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // in connected state we are doing all our jobs
 
                 boolean runGetVersion = true; // don't skip this as we need the tag data for later working
-                boolean runAuthenticationDefault = true;
-                boolean runReadConfiguration = true;
+                boolean runAuthenticationDefault = false;
+                boolean runAuthenticationCustom = true;
+                boolean runChangePasswordDefaultToCustom = false;
+                boolean runChangePasswordCustomToDefault = false;
+
+                boolean runReadConfiguration = false;
                 boolean runSetAuthProtectionPage07 = false;
                 boolean runDisableAuthProtection = false;
                 boolean runEnableNfcReadCounter = false;
@@ -135,31 +140,34 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runSetAutProtectionWriteOnly = false;
                 boolean runSetAuthProtectionReadWrite = false;
                 boolean runReadSignature = false;
-                boolean runReadCounter = true;
-                boolean runReadPages03 = true;
-                boolean runReadConfigPages = true;
-                boolean runFastReadComplete = true;
+                boolean runReadCounter = false;
+                boolean runReadPages03 = false;
+                boolean runReadConfigPages = false;
+                boolean runFastReadComplete = false;
                 boolean runWritePage04 = false;
 
                 output += lineDivider + "\n";
-                output += "=== Tasks Overview === " + "\n";
-                output += "= Get Version          " + runGetVersion + "\n";
-                output += "= Authenticate Default " + runAuthenticationDefault + "\n";
-                output += "= Read Configuration   " + runReadConfiguration + "\n";
-                output += "= Enable Auth Prot.P07 " + runSetAuthProtectionPage07 + "\n";
-                output += "= Disable Auth Prot    " + runDisableAuthProtection + "\n";
-                output += "= Enable NFC Read Cnt  " + runEnableNfcReadCounter + "\n";
-                output += "= Disable NFC Read Cnt " + runDisableNfcReadCounter + "\n";
-                output += "= Set ReadCnt PWD Prot " + runSetNfcReadCounterPwdProtected + "\n";
-                output += "= UnsetReadCnt PWD Prt " + runUnsetNfcReadCounterPwdProtected + "\n";
-                output += "= Auth Prot. Write     " + runSetAutProtectionWriteOnly + "\n";
-                output += "= Auth Prot. ReadWrite " + runSetAuthProtectionReadWrite + "\n";
-                output += "= Read Counter         " + runReadCounter + "\n";
-                output += "= Read Pages 0..3      " + runReadPages03 + "\n";
-                output += "= Read Config Pages    " + runReadConfigPages + "\n";
-                output += "= FastRead compl.Tag   " + runFastReadComplete + "\n";
-                output += "= Write Page 04        " + runWritePage04 + "\n";
-                output += "=== Tasks Overview End === " + "\n";
+                output += "==== Tasks Overview ====" + "\n";
+                output += "= Get Version           " + runGetVersion + "\n";
+                output += "= Authenticate Default  " + runAuthenticationDefault + "\n";
+                output += "= Authenticate Custom   " + runAuthenticationCustom + "\n";
+                output += "= chg Password->Custom  " + runChangePasswordDefaultToCustom + "\n";
+                output += "= chg Password->Default " + runChangePasswordCustomToDefault + "\n";
+                output += "= Read Configuration    " + runReadConfiguration + "\n";
+                output += "= Enable Auth Prot.P07  " + runSetAuthProtectionPage07 + "\n";
+                output += "= Disable Auth Prot     " + runDisableAuthProtection + "\n";
+                output += "= Enable NFC Read Cnt   " + runEnableNfcReadCounter + "\n";
+                output += "= Disable NFC Read Cnt  " + runDisableNfcReadCounter + "\n";
+                output += "= Set ReadCnt PWD Prot  " + runSetNfcReadCounterPwdProtected + "\n";
+                output += "= UnsetReadCnt PWD Prt  " + runUnsetNfcReadCounterPwdProtected + "\n";
+                output += "= Auth Prot. Write      " + runSetAutProtectionWriteOnly + "\n";
+                output += "= Auth Prot. ReadWrite  " + runSetAuthProtectionReadWrite + "\n";
+                output += "= Read Counter          " + runReadCounter + "\n";
+                output += "= Read Pages 0..3       " + runReadPages03 + "\n";
+                output += "= Read Config Pages     " + runReadConfigPages + "\n";
+                output += "= FastRead compl.Tag    " + runFastReadComplete + "\n";
+                output += "= Write Page 04         " + runWritePage04 + "\n";
+                output += "==== Tasks Overview End ====" + "\n";
 
                 if (runGetVersion) {
                     // run a 'get version' command
@@ -436,22 +444,79 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     output += lineDivider + "\n";
                     output += "Authenticate with Default Password and PACK" + "\n";
                     if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                        boolean authenticationSuccess = authenticatePassword(nfcA, 0, DEFAULT_PASSWORD, DEFAULT_PACK);
+                        output += "Using DEFAULT Password and PACK" + "\n";
+                        boolean authenticationSuccess = authenticatePassword(nfcA, DEFAULT_PASSWORD, DEFAULT_PACK);
                         output += "authentication with DEFAULT password and PACK: " + authenticationSuccess + "\n";
 
                         if (!authenticationSuccess) {
                             reconnect(nfcA);
                             output += "run authentication with CUSTOM password and PACK" + "\n";
-                            authenticationSuccess = authenticatePassword(nfcA, 0, CUSTOM_PASSWORD, CUSTOM_PACK);
+                            authenticationSuccess = authenticatePassword(nfcA, CUSTOM_PASSWORD, CUSTOM_PACK);
                             output += "authentication with CUSTOM password and PACK: " + authenticationSuccess + "\n";
                         }
 
                     } else {
-                        output += "AAuthenticate with Default Password and PACK is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                        output += "Authenticate with Default Password and PACK is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
                     }
                 } else {
                     output += lineDivider + "\n";
                     output += "Skipped: Authenticate with Default Password and PACK" + "\n";
+                }
+
+                if (runAuthenticationCustom) {
+                    // analyze the configuration
+                    output += lineDivider + "\n";
+                    output += "Authenticate with Custom Password and PACK" + "\n";
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += "Using CUSTOM Password and PACK" + "\n";
+                        boolean authenticationSuccess = authenticatePassword(nfcA, CUSTOM_PASSWORD, CUSTOM_PACK);
+                        output += "authentication with CUSTOM password and PACK: " + authenticationSuccess + "\n";
+
+                        if (!authenticationSuccess) {
+                            reconnect(nfcA);
+                            output += "run authentication with DEFAULT password and PACK" + "\n";
+                            authenticationSuccess = authenticatePassword(nfcA, DEFAULT_PASSWORD, DEFAULT_PACK);
+                            output += "authentication with DEFAULT password and PACK: " + authenticationSuccess + "\n";
+                        }
+
+                    } else {
+                        output += "Authenticate with CUSTOM Password and PACK is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                    }
+                } else {
+                    output += lineDivider + "\n";
+                    output += "Skipped: Authenticate with Default Password and PACK" + "\n";
+                }
+
+                if (runChangePasswordDefaultToCustom) {
+                    // analyze the configuration
+                    output += lineDivider + "\n";
+                    output += "Change Password and PACK from Default to Custom" + "\n";
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        boolean changePasswordPackSuccess = changePasswordPack(nfcA, (ti.tagMemoryEndPage - 1), DEFAULT_PASSWORD, DEFAULT_PACK, CUSTOM_PASSWORD, CUSTOM_PACK);
+                        output += "Change Password and PACK from Default to Custom: " + changePasswordPackSuccess + "\n";
+
+                    } else {
+                        output += "Change Password and PACK from Default to Custom is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                    }
+                } else {
+                    output += lineDivider + "\n";
+                    output += "Skipped: Change Password and PACK from Default to Custom" + "\n";
+                }
+
+                if (runChangePasswordCustomToDefault) {
+                    // analyze the configuration
+                    output += lineDivider + "\n";
+                    output += "Change Password and PACK from Custom to Default" + "\n";
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        boolean changePasswordPackSuccess = changePasswordPack(nfcA, (ti.tagMemoryEndPage - 1), CUSTOM_PASSWORD, CUSTOM_PACK, DEFAULT_PASSWORD, DEFAULT_PACK);
+                        output += "Change Password and PACK from Custom to Default: " + changePasswordPackSuccess + "\n";
+
+                    } else {
+                        output += "Change Password and PACK from Custom to Default is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                    }
+                } else {
+                    output += lineDivider + "\n";
+                    output += "Skipped: Change Password and PACK from Custom to Default" + "\n";
                 }
 
                 if (runReadConfiguration) {
@@ -924,6 +989,8 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                     output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
                     output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
                 }
+
+                output += lineDivider + "\n";
 
                 nfcA.close();
             } catch (IOException e) {
