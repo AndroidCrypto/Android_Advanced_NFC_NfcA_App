@@ -57,6 +57,34 @@ public class NfcACommands {
     public static final byte[] CUSTOM_PASSWORD = hexStringToByteArray("98765432");
     public static final byte[] CUSTOM_PACK = hexStringToByteArray("CC00");
 
+    /*
+        Available commands
+        readPage: reads the content of the <pageNumber> + 3 following pages, returns 4 pages = 16 bytes
+        fastReadPage: reads the content of multiple pages, starting with <pageNumberStart> and ending with <pageNumberEnd>
+        writePage: writes the content of one page to the taag
+        writeBulkData: writes the content of maximum 40 bytes to subsequent pages, starting with <startPageNumber>
+        getVersion: returns the the version data of the tag
+        getMoreData: reads data from the tag as long the tag indicates that more data is waiting
+        readCounterInt: read the value of the one counter (NTAG21x) or up to 3 counters (Ultralight EV1) as an integer value
+        readCounter: read the value of the one counter (NTAG21x) or up to 3 counters (Ultralight EV1), returns a 3 bytes long array (LSB encoded)
+        readSignature: reads the 32 bytes long Elliptic Curve signature (NTAG21x and Ultralight EV1 only)
+        checkResponse: returns true when response is "ACK"
+        resolveCheckResponse: returns a string with text encoded error messages
+        reconnect: After an error situation it is good practise to reconnect to the tag
+        changePasswordPack:
+        verifyNtag21xOriginalitySignature:
+
+
+        // professional
+        authenticatePassword:
+        readConfigurationPages: reads, analyzes and dumps the Configuration Pages
+        analyzeConfigurationPages:
+        setAsciiMirroring: enables or disables an ASCII mirroring of tag UID and/or NFC Read Counter (NTAG21x only)
+
+
+
+    */
+
     /**
      * This allows to read the complete memory = all pages of the tag. If a page is not readable the
      * method returns NULL.
