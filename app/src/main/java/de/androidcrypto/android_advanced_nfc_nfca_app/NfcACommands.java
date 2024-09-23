@@ -138,7 +138,7 @@ public class NfcACommands {
         if (pageNumber < 0) {
             Log.e(TAG, "writePage pageNumber is < 0, aborted");
             lastExceptionString = "writePage pageNumber is < 0, aborted";
-            return new byte[]{ACK};
+            return new byte[]{NAK_INVALID_ARGUMENT};
         }
         // there is no check on upper limit - this is tag specific
         if (pageData4Byte == null) {
@@ -164,6 +164,66 @@ public class NfcACommands {
             lastExceptionString = "writePage to page " + pageNumber + " failed with IOException: " + e.getMessage();
             return new byte[]{NAK_IOEXCEPTION_ERROR};
         }
+    }
+
+    /**
+     * This write method accepts data lengths up to 40 bytes that are split into chunks of 4 bytes each.
+     * Beginning with the startPageNumber all data is written subsequently to the pages.
+     * @param nfcA
+     * @param startPageNumber
+     * @param bulkPageData
+     * @return
+     */
+    public static boolean writeBulkData(NfcA nfcA, int startPageNumber, byte[] bulkPageData) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return false;
+        }
+        if (startPageNumber < 0) {
+            Log.e(TAG, "writePage startPageNumber is < 0, aborted");
+            lastExceptionString = "writePage startPageNumber is < 0, aborted";
+            return false;
+        }
+        if (bulkPageData == null) {
+            Log.e(TAG, "writePage bulkPageData is NULL, aborted");
+            lastExceptionString = "writePage bulkPageData is NULL, aborted";
+            return false;
+        }
+        if (bulkPageData.length > 40) {
+            Log.e(TAG, "writePage bulkPageData length is >40, aborted");
+            lastExceptionString = "writePage bulkPageData length is >40, aborted";
+            return false;
+        }
+        byte[] pageData;
+        int remainingBytes = bulkPageData.length;
+        int copyIndex = 0; // copy the data from this position
+        int pageIndex = startPageNumber;
+        byte[] writeResponse;
+        System.out.println(printData("bulkData", bulkPageData));
+        while (remainingBytes > 0) {
+            System.out.println("remainingBytes: " + remainingBytes);
+            pageData = new byte[4];
+            if (remainingBytes < 5) {
+                System.out.println("remainingBytes < 5, copyIndex: " + copyIndex);
+                System.arraycopy(bulkPageData, copyIndex, pageData, 0, remainingBytes); // copy the remaining bytes
+            } else {
+                System.out.println("remainingBytes > 4, copyIndex: " + copyIndex);
+                // a new round will follow after this one
+                System.arraycopy(bulkPageData, copyIndex, pageData, 0, 4);
+            }
+            System.out.println("before writePage pageIndex: " + pageIndex);
+            writeResponse = writePage(nfcA, pageIndex, pageData);
+            if ((writeResponse == null) || (writeResponse.length < 1) || (!checkResponse(writeResponse[0]))) {
+                // an error occurred
+                return false; // the lastExceptionString was already filled by writePage
+            }
+            copyIndex = copyIndex + 4;
+            pageIndex ++;
+            remainingBytes = remainingBytes - 4;
+        }
+        return true;
     }
 
     /**

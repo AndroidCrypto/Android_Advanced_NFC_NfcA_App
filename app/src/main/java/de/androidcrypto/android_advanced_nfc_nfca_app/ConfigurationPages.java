@@ -48,11 +48,13 @@ public class ConfigurationPages {
     public void setAuthProtectionPage(int pageNumber) {
         // this is available on NTAG21x + Ultralight EV1 tags
         c0Byte3 = (byte) (pageNumber & 0x0ff);
+        buildConfigurationPages01();
     }
 
     public void disableAuthProtectionPage() {
         // this is available on NTAG21x + Ultralight EV1 tags
         c0Byte3 = (byte) (0xff);
+        buildConfigurationPages01();
     }
 
     public void enableNfcReadCounter() {

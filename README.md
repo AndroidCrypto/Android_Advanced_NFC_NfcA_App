@@ -150,7 +150,7 @@ be aware that each device may have a different buffer size and you cannot rely o
 
 
 
-### Compability Write Command 0xA0h
+### Compatibility Write Command 0xA0h
 
 
 ### Read Counter Command 0x39h
@@ -234,6 +234,50 @@ UID length: 7 data:                    1DAC2BB9950000
                                                                                        1DAC2BB9950000                        
 Result of Originality Signature verification: false
 ```
+
+### Log file of reading page 04 with Read AuthProtection starting page 06 and successful authentication
+
+```plaintext
+--------------------
+Read pages from page 04
+data from pages 4, 5, 6 and 7: 416E64726F696443727970746F204E46
+AndroidCrypto NF
+--------------------
+```
+
+### Log file of reading page 04 with Read AuthProtection starting page 06 and without authentication
+
+```plaintext
+--------------------
+Read pages from page 04
+data from pages 4, 5, 6 and 7: 416E64721D424A9DB99500002CA30000
+AndrBJ���????,�????
+--------------------
+                                    
+This is the content of page 00 .. 03:
+```plaintext
+--------------------
+Read pages from page 00
+data from pages 0, 1, 2 and 3: 1D424A9DB99500002CA30000E1101200
+
+BJ���????,�????�??
+--------------------
+
+This data was presented by the tag: 416E6472 1D424A9D B9950000 2CA30000
+                                    page 04  page 05  page 06  page 07
+
+This data was presented by the tag: 1D424A9D B9950000 2CA30000 E1101200
+                                    page 00  page 01  page 02  page 03
+                                    
+As the tag is read protected from page 6 onwards it responds pages 04 + 05 
+with the real content and the content of "pages 06 + 07" is the data from 
+pages 00 + 01 due to the "roll over" management.                                    
+                                    
+```
+
+(and 05, 06 and 07 aswell)
+
+
 
 ### NTAG ACK and NAK responses
 

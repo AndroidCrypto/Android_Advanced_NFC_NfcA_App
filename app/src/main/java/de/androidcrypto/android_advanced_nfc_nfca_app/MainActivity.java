@@ -21,6 +21,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.reconn
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.resolveCheckResponse;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.setAsciiMirroring;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.verifyNtag21xOriginalitySignature;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writeBulkData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writePage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
@@ -135,7 +136,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runSetAuthProtectionPage07 = false;
                 boolean runDisableAuthProtection = false;
                 boolean runEnableNfcReadCounter = false;
-                boolean runDisableNfcReadCounter = true;
+                boolean runDisableNfcReadCounter = false;
                 boolean runSetNfcReadCounterPwdProtected = false;
                 boolean runUnsetNfcReadCounterPwdProtected = false;
                 boolean runSetAutProtectionWriteOnly = false;
@@ -146,10 +147,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
                 boolean runReadSignature = false;
                 boolean runReadCounter = false;
-                boolean runReadPages03 = false;
+                boolean runReadPages03 = true;
+                boolean runReadPages47 = true;
                 boolean runReadConfigPages = false;
-                boolean runFastReadComplete = true;
+                boolean runFastReadComplete = false;
                 boolean runWritePage04 = false;
+                boolean runWriteBulkDataPage04 = false;
 
                 output += lineDivider + "\n";
                 output += "==== Tasks Overview ====" + "\n";
@@ -172,9 +175,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "= Read Signature        " + runReadSignature + "\n";
                 output += "= Read Counter          " + runReadCounter + "\n";
                 output += "= Read Pages 0..3       " + runReadPages03 + "\n";
+                output += "= Read Pages 4..7       " + runReadPages47 + "\n";
                 output += "= Read Config Pages     " + runReadConfigPages + "\n";
                 output += "= FastRead compl.Tag    " + runFastReadComplete + "\n";
                 output += "= Write Page 04         " + runWritePage04 + "\n";
+                output += "= Write Bulk D Page 04  " + runWriteBulkDataPage04 + "\n";
                 output += "==== Tasks Overview End ====" + "\n";
 
                 if (runGetVersion) {
@@ -545,16 +550,18 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += cp.dump() + "\n";
 
                         if (runSetAuthProtectionPage07) {
-                            output += "Enable AuthProtection to pages 07ff" + "\n";
+                            output += "Enable AuthProtection Read&Write to pages 07ff" + "\n";
                             //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
                             if (cp.isValid()) {
                                 cp.setAuthProtectionPage(7);
+                                cp.setAuthProtectionReadWrite();
                                 //
                                 byte[] configPage0 = cp.getConfigurationPage0();
                                 byte[] configPage1 = cp.getConfigurationPage1();
                                 output += printData("Configuration Page 0", configPage0) + "\n";
                                 output += printData("Configuration Page 1", configPage1) + "\n";
-                                // just need to write configuration page 1
+                                // commented out  // just need to write configuration page 1
+                                byte[] writeConfig0Response = writePage(nfcA, (ti.configurationStartPage), configPage0);
                                 byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                 output += printData("writeConfig1Response", writeConfig1Response) + "\n";
                                 if (checkResponse(writeConfig1Response[0])) {
@@ -835,6 +842,40 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 }
 
+                if (runReadPages47) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read pages from page 04" + "\n";
+                            byte[] pagesData = readPage(nfcA, 4); // page 04 is the first page of the user memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from pages 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
                 if (runReadConfigPages) {
                     // read a page from the tag
                     // restricted to NTAG21x and MIFARE Ultralight EV1
@@ -1043,6 +1084,14 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                     // I'm using byte 0 only for checking
                     output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
                     output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
+                }
+
+                if (runWriteBulkDataPage04) {
+                    output += lineDivider + "\n";
+                    output += "write bulk data on page 04" + "\n";
+                    byte[] bulkDataToWrite = "AndroidCrypto NFC NfcA Tutorial".getBytes(StandardCharsets.UTF_8);
+                    boolean writeBulkDataSuccess = writeBulkData(nfcA, 4, bulkDataToWrite);
+                    output += "writeBulkDataToPage 04 success: " + writeBulkDataSuccess + "\n";
                 }
 
                 output += lineDivider + "\n";
