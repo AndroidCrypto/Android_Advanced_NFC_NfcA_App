@@ -99,6 +99,82 @@ public class ConfigurationPages {
         buildConfigurationPages01();
     }
 
+    public boolean setAsciiMirroring(boolean mirrorUidAscii, boolean mirrorNfcCounter, int startPage, int startByteInPage) {
+        // this is available on NTAG21x tags only
+        if ((startByteInPage < 0) || (startByteInPage > 3)) {
+            System.out.println("Error: startByteInPage < 0 or startByteInPage > 3, aborted");
+            return false;
+        }
+        if (startPage > 221) {
+            System.out.println("Error: startPage > 221, aborted");
+            return false;
+        }
+        if (tagType == TagType.NTAG21x) {
+            // what should get mirrored ?
+            if (mirrorUidAscii) {
+                c0Byte0 = setBitInByte(c0Byte0, 6);
+            } else {
+                c0Byte0 = unsetBitInByte(c0Byte0, 6);
+            }
+            if (mirrorNfcCounter) {
+                c0Byte0 = setBitInByte(c0Byte0, 7);
+            } else {
+                c0Byte0 = unsetBitInByte(c0Byte0, 7);
+            }
+            // define the byte number within the mirror page where the mirroring will start
+            if (startByteInPage == 0) {
+                c0Byte0 = unsetBitInByte(c0Byte0, 4);
+                c0Byte0 = unsetBitInByte(c0Byte0, 5);
+            } else if (startByteInPage == 1) {
+                c0Byte0 = setBitInByte(c0Byte0, 4);
+                c0Byte0 = unsetBitInByte(c0Byte0, 5);
+            } else if (startByteInPage == 2) {
+                c0Byte0 = unsetBitInByte(c0Byte0, 4);
+                c0Byte0 = setBitInByte(c0Byte0, 5);
+            } else {
+                c0Byte0 = setBitInByte(c0Byte0, 4);
+                c0Byte0 = setBitInByte(c0Byte0, 5);
+            }
+            // define the page where the mirroring is going to start
+            c0Byte2 = (byte) startPage;
+            buildConfigurationPages01();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkC0B0Bit7() {
+        return testBit(c0Byte0, 7);
+    }
+
+    private boolean checkC0B0Bit6() {
+        return testBit(c0Byte0, 6);
+    }
+
+    private boolean checkC0B0Bit5() {
+        return testBit(c0Byte0, 5);
+    }
+
+    private boolean checkC0B0Bit4() {
+        return testBit(c0Byte0, 4);
+    }
+
+    private boolean checkC0B0Bit3() {
+        return testBit(c0Byte0, 3);
+    }
+
+    private boolean checkC0B0Bit2() {
+        return testBit(c0Byte0, 2);
+    }
+
+    private boolean checkC0B0Bit1() {
+        return testBit(c0Byte0, 1);
+    }
+
+    private boolean checkC0B0Bit0() {
+        return testBit(c0Byte0, 0);
+    }
+
     private boolean checkC1B0Bit7() {
         return testBit(c1Byte0, 7);
     }
@@ -139,6 +215,43 @@ public class ConfigurationPages {
         StringBuilder sb = new StringBuilder();
         sb.append("Configuration Pages dump").append("\n");
         sb.append(printData("data", configurationPages01)).append("\n");
+        // mirror feature in NTAG21x in conf page 0 byte 0 and 2
+        sb.append("--- Mirror Feature ---").append("\n");
+        sb.append("Mirror_PAGE ");
+        if (c0Byte2 == (byte) 0xff) {
+            sb.append(255).append("\n");
+        } else {
+            sb.append((int) c0Byte2).append("\n");
+        }
+        // mirror byte
+        sb.append("--- MIRROR Byte ---").append("\n");
+        sb.append("CONF COUNT  ");
+        if (checkC0B0Bit7() ) {
+            sb.append("Enabled").append("\n");
+        } else {
+            sb.append("Disabled").append("\n");
+        }
+        sb.append("CONF ASCII  ");
+        if (checkC0B0Bit6() ) {
+            sb.append("Enabled").append("\n");
+        } else {
+            sb.append("Disabled").append("\n");
+        }
+        // mirror byte
+        int mirrorByteInt = 0;
+        if (checkC1B0Bit4()) mirrorByteInt += 1;
+        if (checkC1B0Bit5()) mirrorByteInt += 2;
+        sb.append("Mirror Byte ").append(mirrorByteInt).append("\n");
+        // bit 3 is RFUI
+        sb.append("STRG_MOD_EN ");
+        if (checkC0B0Bit2() ) {
+            sb.append("Enabled").append("\n");
+        } else {
+            sb.append("Disabled").append("\n");
+        }
+        // bits 0 + 1 are RFUI
+
+        sb.append("--- Auth Prot ---").append("\n");
         sb.append("Auth0    ");
         if (c0Byte3 == (byte) 0xff) {
             sb.append(255).append("\n");
@@ -269,7 +382,7 @@ public class ConfigurationPages {
     }
 
     // internal
-    private void buildConfigurationPages01() {
+    public void buildConfigurationPages01() {
         configurationPages01[0] = c0Byte0;
         configurationPages01[1] = c0Byte1;
         configurationPages01[2] = c0Byte2;

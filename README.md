@@ -155,14 +155,14 @@ be aware that each device may have a different buffer size and you cannot rely o
 
 ### Read Counter Command 0x39h
 
-Description for MIFARE Ultralight EV1:
+**Description for MIFARE Ultralight EV1:**
 
 The READ_CNT command is used to read out the current value of one of the 3 one-way counters of the 
 MF0ULx1 (Ultralight EV1). The command has a single argument specifying the counter number and returns 
 the 24-bit counter value of the corresponding counter. The counters are always readable, independent 
 on the password protection settings.
 
-Description for NTAG21:
+**Description for NTAG21:**
 
 The READ_CNT command is used to read out the current value of the NFC one-way counter of the NTAG213, 
 NTAG215 and NTAG216. The command has a single argument specifying the counter number and returns the 
@@ -240,6 +240,67 @@ Result of Originality Signature verification: false
 
 ### ATQA and SAK responses
 
+
+### ASCII mirror function (NTAG21x only)
+
+NTAG21x features a ASCII mirror function. This function enables NTAG21x to virtually mirror
+- 7 byte UID (see Section 8.7.1) or
+- 3 byte NFC counter value (see Section 8.7.2) or
+- both, 7 byte UID and 3 byte NFC counter value with a separation byte (see Section 8.7.3)
+into the physical memory of the IC in ASCII code. On the READ or FAST READ command to the involved 
+user memory pages, NTAG21x will respond with the virtual memory content of the UID and/or NFC 
+counter value in ASCII code.
+
+The required length of the reserved physical memory for the mirror functions is specified in Table 12. 
+If the ASCII mirror exceeds the user memory area, the data will not be mirrored.
+
+```plaintext
+ASCII mirror       Required number of bytes in the physical memory
+UID mirror         14 bytes
+NFC counter        6 bytes
+UID + NFC counter  21 bytes (14 bytes for UID + 1 byte separation + 6 bytes NFC counter value)
+Table 12. Required memory space for ASCII mirror 
+```
+
+The position within the user memory where the mirroring of the UID and/or NFC counter shall start is 
+defined by the MIRROR_PAGE and MIRROR_BYTE values. The MIRROR_PAGE value defines the page where the 
+ASCII mirror shall start and the MIRROR_BYTE value defines the starting byte within the defined page.
+
+The ASCII mirror function is enabled with a MIRROR_PAGE value >03h.
+
+The MIRROR_CONF bits (see Table 9 and Table 11) define if ASCII mirror shall be enabled for the UID 
+and/or NFC counter. If both, the UID and NFC counter, are enabled for the ASCII mirror, the UID and 
+the NFC counter bytes are separated automatically with an “x” character (78h ASCII code).
+
+```plaintext
+Table 9. MIRROR configuration byte (Configuration Page 0, byte 0)
+Bit Explanation Default
+7:  MIRROR_CONF 00b     Defines which ASCII mirror shall be used, if the ASCII mirror is enabled by 
+                        a valid the MIRROR_PAGE byte
+                        00b : no ASCII mirror
+                        01b : UID ASCII mirror
+                        10b : NFC counter ASCII mirror
+                        11b : UID and NFC counter ASCII mirror
+6:  MIRROR_CONF 
+5:  MIRROR_BYTE 00b     The 2 bits define the byte position within the page defined by the MIRROR_PAGE 
+4:  MIRROR_BYTE         byte (beginning of ASCII mirror) (0, 1, 2 or 3 dec)
+3:  RFUI        -
+2:  STRG_MOD_EN 1b      STRG MOD_EN defines the modulation mode
+                        0b : strong modulation mode disabled
+                        1b : strong modulation mode enabled
+1:  RFUI        -
+0:  RFUI        -
+
+MIRROR_PAGE (Configuration Page 0, byte 2):
+Default value: 00h : MIRROR_Page defines the page for the beginning of the ASCII mirroring.
+                     A value >03h enables the ASCII mirror feature
+```
+
+Bote: If you set the NFC Read Counter mirror in MIRROR byte (Bit 7, MIRROR_CONF) you need to enable the NFC 
+Read Counter in the ACCESS byte (Bit 4, NFC_CNT_EN) or this value is not mirrored in the user memory ! 
+
+
+# OLD DESCRIPTION
 
 This is a simple app showing how to detect and read some data from an NFC tag tapped to the Android's NFC reader.
 

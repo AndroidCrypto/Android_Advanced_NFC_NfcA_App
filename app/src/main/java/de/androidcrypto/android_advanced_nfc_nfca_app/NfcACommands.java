@@ -5,7 +5,9 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateBy
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.intFrom3ByteArrayLsb;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.setBitInByte;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.unsetBitInByte;
 
 import android.nfc.TagLostException;
 import android.nfc.tech.NfcA;
@@ -66,12 +68,20 @@ public class NfcACommands {
      * method returns the response of the tag, e.g. '0x6700h' or '0x04h.
      */
     public static byte[] readPage(NfcA nfcA, int pageNumber) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         byte[] response = null;
         try {
+            System.out.println("*** start read page " + pageNumber);
             response = nfcA.transceive(new byte[]{
                     (byte) 0x30, // READ a page command
                     (byte) (pageNumber & 0x0ff)  // page address
             });
+            System.out.println(printData("*** readPage response: ", response));
             return response;
         } catch (IOException e) {
             Log.e(TAG, "on page " + pageNumber + " readPage failed with IOException: " + e.getMessage());
@@ -91,6 +101,12 @@ public class NfcACommands {
      * @return
      */
     public static byte[] fastReadPage(NfcA nfcA, int pageNumberStart, int pageNumberEnd) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         byte[] response = null;
         try {
             response = nfcA.transceive(new byte[]{
@@ -107,18 +123,26 @@ public class NfcACommands {
     }
 
     public static byte[] writePage(NfcA nfcA, int pageNumber, byte[] pageData4Byte) {
-        // sanity check
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         if (pageNumber < 0) {
             Log.e(TAG, "writePage pageNumber is < 0, aborted");
+            lastExceptionString = "writePage pageNumber is < 0, aborted";
             return new byte[]{ACK};
         }
         // there is no check on upper limit - this is tag specific
         if (pageData4Byte == null) {
             Log.e(TAG, "writePage pageData4Byte is NULL, aborted");
+            lastExceptionString = "writePage pageData4Byte is NULL, aborted";
             return new byte[]{NAK_INVALID_ARGUMENT};
         }
         if (pageData4Byte.length != 4) {
             Log.e(TAG, "writePage pageData4Byte is not of length 4 found " + pageData4Byte.length + ", aborted");
+            lastExceptionString = "writePage pageData4Byte is not of length 4 found " + pageData4Byte.length + ", aborted";
             return new byte[]{NAK_INVALID_ARGUMENT};
         }
         byte[] response = null;
@@ -137,6 +161,12 @@ public class NfcACommands {
     }
 
     public static byte[] getVersion(NfcA nfcA) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         byte[] response = null;
         try {
             response = nfcA.transceive(new byte[]{
@@ -151,6 +181,12 @@ public class NfcACommands {
     }
 
     public static byte[] getMoreData(NfcA nfcA) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         // we need to run this command as long we are asked for more data by the NFC tag
         boolean moreDataRequested = true;
         byte[] moreDataToReturn = new byte[0];
@@ -191,6 +227,12 @@ public class NfcACommands {
      * @return the counter value 0.., in case of any error it returns -1 as value
      */
     public static int readCounterInt(NfcA nfcA, int counterNumber) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return -1;
+        }
         byte[] response = readCounter(nfcA, counterNumber);
         if (response == null) {
             return -1;
@@ -211,6 +253,12 @@ public class NfcACommands {
      * @return the 24-bit (3 byte) counter in LSB encoding
      */
     public static byte[] readCounter(NfcA nfcA, int counterNumber) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         byte[] response = null;
         try {
             response = nfcA.transceive(new byte[]{
@@ -236,6 +284,12 @@ public class NfcACommands {
      * @return
      */
     public static byte[] readSignature(NfcA nfcA) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
         byte[] response = null;
         try {
             response = nfcA.transceive(new byte[]{
@@ -248,6 +302,107 @@ public class NfcACommands {
             lastExceptionString = "Read Signature failed with IOException: " + e.getMessage();
         }
         return null;
+    }
+
+    /**
+     * Set the ASCII Mirror feature of an NTAG21x tag. If both mirrorUidAscii and mirrorNfcCounter are
+     * false the mirroring will be disabled
+     * @param nfcA
+     * @param startConfigurationPages
+     * @param mirrorUidAscii
+     * @param mirrorNfcCounter
+     * @param startPage needs to be > 3 and < last user memory page - <data for mirroring>
+     * @param startByteInPage needs to be in range 0 .. 3
+     * @return
+     *
+     * Note on <data for mirroring> As the UID data is returned in Hex encoding we need more space:
+     *         UID mirroring:           14 bytes (4 pages)
+     *         NFC Counter mirroring:   6 bytes (2 pages)
+     *         UID + Counter mirroring: 21 bytes (6 pages, 14 for UID, 6 for Counter + 1 for separation
+     *         The separation character will be 0x78h = 'x'
+     *
+     * Note on sanity check for startPage: the minimum is 4 and the maximum that gets checked is page 221
+     *         so there is enough space to mirror the UID and NFC Counter. This maximum is for an
+     *         NTAG216 tag, if you use such a value for a startPage on an NTAG213 or NTAG215 it will fail !
+     */
+    public static boolean setAsciiMirroring(NfcA nfcA, int startConfigurationPages, boolean mirrorUidAscii, boolean mirrorNfcCounter, int startPage, int startByteInPage) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return false;
+        }
+        // skip checks when no mirroring is requested
+        if ((!mirrorUidAscii) && (!mirrorNfcCounter)) {
+            startByteInPage = 0;
+            startPage = 0;
+        } else {
+            if ((startByteInPage < 0) || (startByteInPage > 3)) {
+                Log.e(TAG, "startByteInPage < 0 or startByteInPage > 3, aborted");
+                lastExceptionString = "startByteInPage < 0 or startByteInPage > 3, aborted";
+                return false;
+            }
+            if ((startPage < 4) || (startPage > 221)) {
+                Log.e(TAG, "startPage < 4 or startPage > 221, aborted");
+                lastExceptionString = "startPage < 4 or startPage > 221, aborted";
+                return false;
+            }
+        }
+        /*
+        Workflow
+        1 Read the Configuration Pages 0 & 1
+        2 Change the settings for mirroring depending on parameters
+        3 write the changed Configuration Pages 0 + 1 to the tag
+         */
+        // step 1
+        byte[] configurationPages = readConfigurationPages(nfcA, startConfigurationPages);
+        if ((configurationPages == null) || (configurationPages.length != 8)) {
+            Log.e(TAG, "Error on reading the Configuration pages, aborted. " + lastExceptionString);
+            lastExceptionString = "Error on reading the Configuration pages, aborted. " + lastExceptionString;
+            return false;
+        }
+        // step 2
+        ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+        if (!cp.isValid()) {
+            Log.e(TAG, "ConfigurationPages are invalid, aborted");
+            lastExceptionString = "ConfigurationPages are invalid, aborted";
+            return false;
+        }
+        cp.setAsciiMirroring(mirrorUidAscii, mirrorNfcCounter, startPage, startByteInPage);
+
+        // one time setting for enabling Strong Modulation
+        byte c0Byte0 = cp.getC0Byte0();
+        c0Byte0 = setBitInByte(c0Byte0, 2);
+        cp.setC0Byte0(c0Byte0);
+        // disable any CFGLOCK setting in ACCESS byte ... if avoided or not...
+        byte c1Byte0 = cp.getC1Byte0();
+        c1Byte0 = unsetBitInByte(c1Byte0, 6);
+        cp.setC1Byte0(c1Byte0);
+        // set AUTH0 to outside page frame to disable a setting
+        cp.setC0Byte3((byte) 0xFF);
+        //
+        cp.buildConfigurationPages01();
+
+        // step 3
+        byte[] configPage0 = cp.getConfigurationPage0();
+        byte[] configPage1 = cp.getConfigurationPage1();
+        byte[] writeConfig0Response = writePage(nfcA, startConfigurationPages, configPage0);
+        if (checkResponse(writeConfig0Response[0])){
+            Log.d(TAG, "Write Configuration Page 0 SUCCESS");
+        } else {
+            Log.e(TAG, "Write Configuration Page 0 FAILURE");
+            lastExceptionString = "Write Configuration Page 0 FAILURE " + lastExceptionString;
+            return false;
+        }
+        byte[] writeConfig1Response = writePage(nfcA, startConfigurationPages + 1, configPage1);
+        if (checkResponse(writeConfig1Response[0])){
+            Log.d(TAG, "Write Configuration Page 1 SUCCESS");
+            return true;
+        } else {
+            Log.e(TAG, "Write Configuration Page 1 FAILURE");
+            lastExceptionString = "Write Configuration Page 1 FAILURE " + lastExceptionString;
+            return false;
+        }
     }
 
     public static boolean checkResponse(byte tagResponse) {
@@ -277,9 +432,15 @@ public class NfcACommands {
     }
 
     public static void reconnect(NfcA nfcA) {
+        Log.d(TAG, "Reconnect to NfcA class is best practise after (Tag Lost) exceptions.");
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return;
+        }
         // this is just an advice - if an error occurs - close the connection and reconnect the tag
         // https://stackoverflow.com/a/37047375/8166854
-        Log.d(TAG, "Reconnect to NfcA class is best practise after (Tag Lost) exceptions.");
         try {
             nfcA.close();
             Log.d(TAG, "Close NfcA");
@@ -312,20 +473,29 @@ public class NfcACommands {
      * The response is trimmed to the first 2 pages (8 bytes) instead of the full content of
      * 4 pages.
      *
-     * @param nfca
+     * @param nfcA
      * @param startConfigurationPages
-     * @return 8 bytes for 2 content of configuration page 0 and 1
+     * @return 8 bytes for 2 bytes long content of configuration page 0 and 1
      */
-    public static byte[] readConfigurationPages(NfcA nfca, int startConfigurationPages) {
-        byte[] response = readPage(nfca, startConfigurationPages);
+    public static byte[] readConfigurationPages(NfcA nfcA, int startConfigurationPages) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return null;
+        }
+        byte[] response = readPage(nfcA, startConfigurationPages);
         if (response == null) {
             Log.e(TAG, "readConfigurationPages starting with page " + startConfigurationPages + " failed with IOException: " + lastExceptionString);
+            lastExceptionString = "readConfigurationPages starting with page " + startConfigurationPages + " failed with IOException: " + lastExceptionString;
             return null;
         }
         if (response.length != 16) {
             Log.e(TAG, "readConfigurationPages starting with page " + startConfigurationPages + " does not return 16 bytes = 4 pages of data, aborted. Length of response: " + response.length);
+            lastExceptionString = "readConfigurationPages starting with page " + startConfigurationPages + " does not return 16 bytes = 4 pages of data, aborted. Length of response: " + response.length;
             return null;
         }
+        System.out.println(printData("*** readConfPagesResponse", Arrays.copyOf(response, 8)));
         return Arrays.copyOf(response, 8);
 
         /**
@@ -398,6 +568,7 @@ public class NfcACommands {
     public static boolean analyzeConfigurationPages(Enum TagType, int startConfigurationPages, int lastPageOnTag, byte[] configurationPagesData8Bytes) {
         if ((configurationPagesData8Bytes == null) || (configurationPagesData8Bytes.length != 8)) {
             Log.e(TAG, "analyzeConfigurationPages failed as configurationPagesData8Bytes is NULL or not of length 8, aborted");
+            lastExceptionString = "analyzeConfigurationPages failed as configurationPagesData8Bytes is NULL or not of length 8, aborted";
             return false;
         }
         System.out.println("********* start analyze tag configuration *********");
@@ -521,15 +692,18 @@ public class NfcACommands {
     public static boolean authenticatePassword(NfcA nfcA, byte[] password, byte[] pack) {
         // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
-            Log.e(TAG, "authenticatePassword nfcA is NULL, aborted");
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
             return false;
         }
         if ((password == null) || (password.length != 4)) {
-            Log.e(TAG, "authenticatePassword password is NULL or not of length 4, aborted");
+            Log.e(TAG, "password is NULL or not of length 4, aborted");
+            lastExceptionString = "password is NULL or not of length 4, aborted";
             return false;
         }
         if ((pack == null) || (pack.length != 2)) {
-            Log.e(TAG, "authenticatePassword pack is NULL or not of length 4, aborted");
+            Log.e(TAG, "pack is NULL or not of length 2, aborted");
+            lastExceptionString = "pack is NULL or not of length 2, aborted";
             return false;
         }
         Log.d(TAG, printData("password", password) + " || " + printData("pack", pack));
@@ -542,62 +716,67 @@ public class NfcACommands {
                     password[2],
                     password[3]
             };
-            System.out.println("*** sendPwdAuthData before tranceive");
             response = nfcA.transceive(command); // response should be 16 bytes = 4 pages
             Log.d(TAG, printData("response", response));
             if (response == null) {
                 Log.e(TAG, "Error in authenticatePassword, aborted");
                 // either communication to the tag was lost or a NAK was received
+                lastExceptionString = "Error in authenticatePassword, aborted";
                 return false;
             } else if ((response.length == 1) && ((response[0] & 0x00A) != 0x00A)) {
                 // NAK response according to Digital Protocol/T2TOP
                 // Log and return
                 Log.e(TAG, "Error in authenticatePassword, aborted");
+                lastExceptionString = "Error in authenticatePassword, aborted";
                 return false;
             } else {
                 // success: response contains (P)ACK or actual data
             }
         } catch (TagLostException e) {
             // Log and return
-            Log.e(TAG, "authenticatePassword TagLostException: " + e.getMessage());
-            lastExceptionString = "authenticatePassword TagLostException: " + e.getMessage();
+            Log.e(TAG, "TagLostException: " + e.getMessage());
+            lastExceptionString = "TagLostException: " + e.getMessage();
             return false;
         } catch (IOException e) {
-            Log.e(TAG, "authenticatePassword IOException: " + e.getMessage());
-            lastExceptionString = "authenticatePassword IOException: " + e.getMessage();
+            Log.e(TAG, "IOException: " + e.getMessage());
+            lastExceptionString = "IOException: " + e.getMessage();
             return false;
         }
         if (Arrays.equals(response, pack)) {
-            Log.d(TAG, "authenticatePassword The response EQUALS to PACK, authenticated");
+            Log.d(TAG, "The response EQUALS to PACK, authenticated");
             return true;
         } else {
-            Log.d(TAG, "authenticatePassword The response is DIFFERENT to PACK, NOT authenticated");
-            lastExceptionString = "authenticatePassword The response is DIFFERENT to PACK, NOT authenticated";
+            Log.d(TAG, "The response is DIFFERENT to PACK, NOT authenticated");
+            lastExceptionString = "The response is DIFFERENT to PACK, NOT authenticated";
             return false;
         }
     }
 
     public static boolean changePasswordPack (NfcA nfcA, int passwordPageNumber, byte[] oldPassword4Bytes, byte[] oldPack2Bytes, byte[] newPassword4Bytes, byte[] newPack2Bytes) {
         // sanity checks
-        // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
-            Log.e(TAG, "nfcA is NULL, aborted");
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
             return false;
         }
         if ((oldPassword4Bytes == null) || (oldPassword4Bytes.length != 4)) {
             Log.e(TAG, "oldPassword is NULL or not of length 4, aborted");
+            lastExceptionString = "oldPassword is NULL or not of length 4, aborted";
             return false;
         }
         if ((oldPack2Bytes == null) || (oldPack2Bytes.length != 2)) {
-            Log.e(TAG, "oldPack is NULL or not of length 4, aborted");
+            Log.e(TAG, "oldPACK is NULL or not of length 2, aborted");
+            lastExceptionString = "oldPACK is NULL or not of length 2, aborted";
             return false;
         }
         if ((newPassword4Bytes == null) || (newPassword4Bytes.length != 4)) {
             Log.e(TAG, "newPassword is NULL or not of length 4, aborted");
+            lastExceptionString = "newdPassword is NULL or not of length 4, aborted";
             return false;
         }
         if ((newPack2Bytes == null) || (newPack2Bytes.length != 2)) {
-            Log.e(TAG, "newPack is NULL or not of length 4, aborted");
+            Log.e(TAG, "newPACK is NULL or not of length 2, aborted");
+            lastExceptionString = "newPACK is NULL or not of length 2, aborted";
             return false;
         }
         /*
@@ -611,12 +790,14 @@ public class NfcACommands {
         boolean oldPasswordAuthentication = authenticatePassword(nfcA, oldPassword4Bytes, oldPack2Bytes);
         if (!oldPasswordAuthentication) {
             Log.e(TAG, "changePassword step 1 authenticate with old password and pack failed, aborted");
+            lastExceptionString = "changePassword step 1 authenticate with old password and PACK failed, aborted";
             return false;
         }
         // step 2
         byte[] writeNewPasswordResponse = writePage(nfcA, passwordPageNumber, newPassword4Bytes);
         if (writeNewPasswordResponse[0] != ACK) {
             Log.e(TAG, "changePassword step 2 write new password failed, aborted");
+            lastExceptionString = "changePassword step 2 write new password failed, aborted";
             return false;
         }
         // step 3
@@ -624,13 +805,15 @@ public class NfcACommands {
         System.arraycopy(newPack2Bytes, 0, newPack, 0, 2);
         byte[] writeNewPackResponse = writePage(nfcA, (passwordPageNumber + 1), newPack);
         if (writeNewPackResponse[0] != ACK) {
-            Log.e(TAG, "changePassword step 3 write new pack failed, aborted");
+            Log.e(TAG, "changePassword step 3 write new PACK failed, aborted");
+            lastExceptionString = "changePassword step 3 write new PACK failed, aborted";
             return false;
         }
         // step 4
         boolean newPasswordAuthentication = authenticatePassword(nfcA, newPassword4Bytes, newPack2Bytes);
         if (!newPasswordAuthentication) {
-            Log.e(TAG, "changePassword step 4 authenticate with new password and pack failed, aborted");
+            Log.e(TAG, "changePassword step 4 authenticate with new password and PACK failed, aborted");
+            lastExceptionString = "changePassword step 4 authenticate with new password and PACK failed, aborted";
             return false;
         }
         Log.d(TAG, "changePassword: SUCCESS");
@@ -646,12 +829,13 @@ public class NfcACommands {
     final static String publicKeyNxp = "04494E1A386D3D3CFE3DC10E5DE68A499B1C202DB5B132393E89ED19FE5BE8BC61";
 
     public static boolean verifyNtag21xOriginalitySignature(byte[] tagUid, byte[] ntag21xSignature) {
-// now we are going to verify
+        // now we are going to verify
         boolean signatureVerfied = false;
         // get the public key
         try {
             signatureVerfied = checkEcdsaSignature(publicKeyNxp, ntag21xSignature, tagUid);
         } catch (NoSuchAlgorithmException e) {
+            lastExceptionString = "verifyNtag21xOriginalitySignature NoSuchAlgorithmException, aborted" + " " + e.getMessage();
             e.printStackTrace();
         }
         return signatureVerfied;
@@ -681,10 +865,10 @@ public class NfcACommands {
                 dsa.update(data);
                 return dsa.verify(derEncodeSignature(signature));
             } catch (final SignatureException | InvalidKeySpecException | InvalidKeyException e) {
+                Log.e(TAG, "Exceptions when verifying the signature: " + e.getMessage());
                 e.printStackTrace();
             }
         }
-
         return false;
     }
 
@@ -694,14 +878,11 @@ public class NfcACommands {
         if (key == null || key.length() != 2 * 33 || !key.startsWith("04")) {
             return null;
         }
-
         final String keyX = key.substring(2 * 1, 2 * 17);
         final String keyY = key.substring(2 * 17, 2 * 33);
-
         final BigInteger affineX = new BigInteger(keyX, 16);
         final BigInteger affineY = new BigInteger(keyY, 16);
         final ECPoint w = new ECPoint(affineX, affineY);
-
         return new ECPublicKeySpec(w, curve);
     }
 
@@ -726,7 +907,6 @@ public class NfcACommands {
         final BigInteger order = new
                 BigInteger("fffffffe0000000075a30d1b9038a115", 16);
         final int cofactor = 1;
-
         return new ECParameterSpec(curve, generator, order, cofactor);
     }
 
@@ -734,7 +914,6 @@ public class NfcACommands {
         // split into r and s
         final byte[] r = Arrays.copyOfRange(signature, 0, 16);
         final byte[] s = Arrays.copyOfRange(signature, 16, 32);
-
         int rLen = r.length;
         int sLen = s.length;
         if ((r[0] & 0x80) != 0) {

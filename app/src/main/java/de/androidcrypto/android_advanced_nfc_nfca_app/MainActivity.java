@@ -19,6 +19,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readPa
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readSignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.reconnect;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.resolveCheckResponse;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.setAsciiMirroring;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.verifyNtag21xOriginalitySignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writePage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
@@ -125,12 +126,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // in connected state we are doing all our jobs
 
                 boolean runGetVersion = true; // don't skip this as we need the tag data for later working
-                boolean runAuthenticationDefault = false;
-                boolean runAuthenticationCustom = true;
+                boolean runAuthenticationDefault = true;
+                boolean runAuthenticationCustom = false;
                 boolean runChangePasswordDefaultToCustom = false;
                 boolean runChangePasswordCustomToDefault = false;
 
-                boolean runReadConfiguration = false;
+                boolean runReadConfiguration = true;
                 boolean runSetAuthProtectionPage07 = false;
                 boolean runDisableAuthProtection = false;
                 boolean runEnableNfcReadCounter = false;
@@ -139,11 +140,15 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runUnsetNfcReadCounterPwdProtected = false;
                 boolean runSetAutProtectionWriteOnly = false;
                 boolean runSetAuthProtectionReadWrite = false;
+
+                boolean runEnableAsciiMirroring = true;
+                boolean runDisableAsciiMirroring = false;
+
                 boolean runReadSignature = false;
                 boolean runReadCounter = false;
                 boolean runReadPages03 = false;
                 boolean runReadConfigPages = false;
-                boolean runFastReadComplete = false;
+                boolean runFastReadComplete = true;
                 boolean runWritePage04 = false;
 
                 output += lineDivider + "\n";
@@ -162,6 +167,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "= UnsetReadCnt PWD Prt  " + runUnsetNfcReadCounterPwdProtected + "\n";
                 output += "= Auth Prot. Write      " + runSetAutProtectionWriteOnly + "\n";
                 output += "= Auth Prot. ReadWrite  " + runSetAuthProtectionReadWrite + "\n";
+                output += "= + ASCII UID/Cnt mirr  " + runEnableAsciiMirroring + "\n";
+                output += "= - ASCII UID/Cnt mirr  " + runDisableAsciiMirroring + "\n";
+                output += "= Read Signature        " + runReadSignature + "\n";
                 output += "= Read Counter          " + runReadCounter + "\n";
                 output += "= Read Pages 0..3       " + runReadPages03 + "\n";
                 output += "= Read Config Pages     " + runReadConfigPages + "\n";
@@ -484,7 +492,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 } else {
                     output += lineDivider + "\n";
-                    output += "Skipped: Authenticate with Default Password and PACK" + "\n";
+                    output += "Skipped: Authenticate with Custom Password and PACK" + "\n";
                 }
 
                 if (runChangePasswordDefaultToCustom) {
@@ -549,7 +557,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 // just need to write configuration page 1
                                 byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                 output += printData("writeConfig1Response", writeConfig1Response) + "\n";
-                                if (checkResponse(writeConfig1Response[0])){
+                                if (checkResponse(writeConfig1Response[0])) {
                                     output += "Tag response is ACK -> Success" + "\n";
                                 } else {
                                     output += "Tag response is NAK -> FAILURE" + "\n";
@@ -572,7 +580,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 // just need to write configuration page 1
                                 byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                 output += printData("writeConfig1Response", writeConfig1Response) + "\n";
-                                if (checkResponse(writeConfig1Response[0])){
+                                if (checkResponse(writeConfig1Response[0])) {
                                     output += "Tag response is ACK -> Success" + "\n";
                                 } else {
                                     output += "Tag response is NAK -> FAILURE" + "\n";
@@ -597,7 +605,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                     // just need to write configuration page 1
                                     byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                     output += printData("writeConfig1Response", writeConfig1Response) + "\n";
-                                    if (checkResponse(writeConfig1Response[0])){
+                                    if (checkResponse(writeConfig1Response[0])) {
                                         output += "Tag response is ACK -> Success" + "\n";
                                     } else {
                                         output += "Tag response is NAK -> FAILURE" + "\n";
@@ -622,7 +630,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                     // just need to write configuration page 1
                                     byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                     output += printData("writeConfig1Response", writeConfig1Response) + "\n";
-                                    if (checkResponse(writeConfig1Response[0])){
+                                    if (checkResponse(writeConfig1Response[0])) {
                                         output += "Tag response is ACK -> Success" + "\n";
                                     } else {
                                         output += "Tag response is NAK -> FAILURE" + "\n";
@@ -643,26 +651,26 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
                         // running on NTAG21x and Ultralight EV1
                         if (runSetAutProtectionWriteOnly) {
-                                output += "Auth Protection Write Only" + "\n";
-                                //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
-                                if (cp.isValid()) {
-                                    cp.setAuthProtectionWriteOnly();
-                                    //
-                                    byte[] configPage0 = cp.getConfigurationPage0();
-                                    byte[] configPage1 = cp.getConfigurationPage1();
-                                    output += printData("Configuration Page 0", configPage0) + "\n";
-                                    output += printData("Configuration Page 1", configPage1) + "\n";
-                                    // just need to write configuration page 1
-                                    byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
-                                    output += printData("writeConfig1Response", writeConfig1Response) + "\n";
-                                    if (checkResponse(writeConfig1Response[0])){
-                                        output += "Tag response is ACK -> Success" + "\n";
-                                    } else {
-                                        output += "Tag response is NAK -> FAILURE" + "\n";
-                                    }
+                            output += "Auth Protection Write Only" + "\n";
+                            //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
+                            if (cp.isValid()) {
+                                cp.setAuthProtectionWriteOnly();
+                                //
+                                byte[] configPage0 = cp.getConfigurationPage0();
+                                byte[] configPage1 = cp.getConfigurationPage1();
+                                output += printData("Configuration Page 0", configPage0) + "\n";
+                                output += printData("Configuration Page 1", configPage1) + "\n";
+                                // just need to write configuration page 1
+                                byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
+                                output += printData("writeConfig1Response", writeConfig1Response) + "\n";
+                                if (checkResponse(writeConfig1Response[0])) {
+                                    output += "Tag response is ACK -> Success" + "\n";
                                 } else {
-                                    output += "Configuration Pages are invalid, skipped" + "\n";
+                                    output += "Tag response is NAK -> FAILURE" + "\n";
                                 }
+                            } else {
+                                output += "Configuration Pages are invalid, skipped" + "\n";
+                            }
                         }
                         if (runSetAuthProtectionReadWrite) {
                             output += "Auth Protection Read&Write" + "\n";
@@ -677,7 +685,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 // just need to write configuration page 1
                                 byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                 output += printData("writeConfig1Response", writeConfig1Response) + "\n";
-                                if (checkResponse(writeConfig1Response[0])){
+                                if (checkResponse(writeConfig1Response[0])) {
                                     output += "Tag response is ACK -> Success" + "\n";
                                 } else {
                                     output += "Tag response is NAK -> FAILURE" + "\n";
@@ -689,6 +697,50 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
 
                     } else {
                         output += "Analyzing the Configuration pages is available on NTAG21x or MIFARE Ultralight EV1 tags only, skipped" + "\n";
+                    }
+                }
+
+                if (runEnableAsciiMirroring) {
+                    output += lineDivider + "\n";
+                    output += "Enable ASCII Mirror on NTAG21x" + "\n";
+                    // restricted to NTAG21x
+                    if (ti.isTag_NTAG21x) {
+                        // setting the parameter
+                        int startPage = 6; // here the mirroring will start, 4 .. near end of user memory
+                        int startByteInPage = 0; // The first position of the mirror in a page, 0..3
+                        boolean enableUidMirroring = true;
+                        boolean enableNfcCounterMirroring = true;
+                        boolean setAsciiMirrorSuccess = setAsciiMirroring(nfcA, ti.configurationStartPage, enableUidMirroring, enableNfcCounterMirroring, startPage, startByteInPage);
+                        if (setAsciiMirrorSuccess) {
+                            output += "Set the Ascii Mirror SUCCESS" + "\n";
+                        } else {
+                            output += "Set the Ascii Mirror FAILURE" + "\n";
+                            output += "Last Error: " + lastExceptionString + "\n";
+                        }
+                    } else {
+                        output += "Enabling ASCII Mirroring is available on NTAG21x tags only, skipped" + "\n";
+                    }
+                }
+
+                if (runDisableAsciiMirroring) {
+                    output += lineDivider + "\n";
+                    output += "Disable ASCII Mirror on NTAG21x" + "\n";
+                    // restricted to NTAG21x
+                    if (ti.isTag_NTAG21x) {
+                        // setting the parameter
+                        int startPage = 6; // here the mirroring will start, 4 .. near end of user memory
+                        int startByteInPage = 0; // The first position of the mirror in a page, 0..3
+                        boolean enableUidMirroring = false;
+                        boolean enableNfcCounterMirroring = false;
+                        boolean setAsciiMirrorSuccess = setAsciiMirroring(nfcA, ti.configurationStartPage, enableUidMirroring, enableNfcCounterMirroring, startPage, startByteInPage);
+                        if (setAsciiMirrorSuccess) {
+                            output += "Unset the Ascii Mirror SUCCESS" + "\n";
+                        } else {
+                            output += "Unset the Ascii Mirror FAILURE" + "\n";
+                            output += "Last Error: " + lastExceptionString + "\n";
+                        }
+                    } else {
+                        output += "Disabling ASCII Mirroring is available on NTAG21x tags only, skipped" + "\n";
                     }
                 }
 
@@ -864,6 +916,9 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 output += "This is the skipped content:\n" + printData("skipped tag content", completeContentFastRead) + "\n";
                             } else {
                                 output += printData("Full tag content", completeContentFastRead) + "\n";
+                                output += lineDivider + "\n";
+                                output += "ASCII content" + "\n";
+                                output += new String(completeContentFastRead, StandardCharsets.UTF_8) + "\n";
                             }
                         } else {
                             output += "FastRead skipped, tag has no command" + "\n";
