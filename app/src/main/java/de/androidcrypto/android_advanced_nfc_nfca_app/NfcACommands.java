@@ -68,7 +68,7 @@ public class NfcACommands {
      * method returns the response of the tag, e.g. '0x6700h' or '0x04h.
      */
     public static byte[] readPage(NfcA nfcA, int pageNumber) {
-        // sanity checks
+        // sanity check
         if ((nfcA == null) || (!nfcA.isConnected())) {
             Log.e(TAG, "nfcA is NULL or not connected, aborted");
             lastExceptionString = "nfcA is NULL or not connected, aborted";
@@ -76,12 +76,10 @@ public class NfcACommands {
         }
         byte[] response = null;
         try {
-            System.out.println("*** start read page " + pageNumber);
             response = nfcA.transceive(new byte[]{
                     (byte) 0x30, // READ a page command
-                    (byte) (pageNumber & 0x0ff)  // page address
+                    (byte) (pageNumber & 0xff)  // page address
             });
-            System.out.println(printData("*** readPage response: ", response));
             return response;
         } catch (IOException e) {
             Log.e(TAG, "on page " + pageNumber + " readPage failed with IOException: " + e.getMessage());
@@ -111,8 +109,8 @@ public class NfcACommands {
         try {
             response = nfcA.transceive(new byte[]{
                     (byte) 0x3A, // FAST READ pages command
-                    (byte) (pageNumberStart & 0x0ff),  // first page address to read
-                    (byte) (pageNumberEnd & 0x0ff)  // last page address to read
+                    (byte) (pageNumberStart & 0xff),  // first page address to read
+                    (byte) (pageNumberEnd & 0xff)  // last page address to read
             });
             return response;
         } catch (IOException e) {
@@ -122,6 +120,14 @@ public class NfcACommands {
         }
     }
 
+    /**
+     * Write data to one page. The data to write need to be exactly 4 bytes long. The page number needs
+     * be in the range of the tag memory.
+     * @param nfcA
+     * @param pageNumber
+     * @param pageData4Byte
+     * @return is either the Acknowledge Byte ("ACK") or a Not Acknowledge Byte ("NAK")
+     */
     public static byte[] writePage(NfcA nfcA, int pageNumber, byte[] pageData4Byte) {
         // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
@@ -149,7 +155,7 @@ public class NfcACommands {
         try {
             response = nfcA.transceive(new byte[]{
                     (byte) 0xA2, // WRITE a page command
-                    (byte) (pageNumber & 0x0ff),  // page address
+                    (byte) (pageNumber & 0xff),  // page address
                     pageData4Byte[0], pageData4Byte[1], pageData4Byte[2], pageData4Byte[3]
             });
             return response;
@@ -160,6 +166,12 @@ public class NfcACommands {
         }
     }
 
+    /**
+     * Returns the version data of the tag that can be of dirrent length, depending on the tag type.
+     * Modern tags respond with about >20 bytes, an NTAG21x or MIFARE Ultralight responds 8 bytes.
+     * @param nfcA
+     * @return
+     */
     public static byte[] getVersion(NfcA nfcA) {
         // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
@@ -180,6 +192,12 @@ public class NfcACommands {
         return null;
     }
 
+    /**
+     * When the tags signalizes that there are more data to retrieve it sends an "0xAFh" byte. The
+     * NFC reader can simply send an '0xAFh' command and the tag responds with more data.
+     * @param nfcA
+     * @return
+     */
     public static byte[] getMoreData(NfcA nfcA) {
         // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
@@ -263,7 +281,7 @@ public class NfcACommands {
         try {
             response = nfcA.transceive(new byte[]{
                     (byte) 0x39,  // Read Counter command
-                    (byte) (counterNumber & 0x0ff) // in case Ultralight EV1 0..2, NTAG21x 2
+                    (byte) (counterNumber & 0xff) // in case Ultralight EV1 0..2, NTAG21x 2
             });
             return response;
         } catch (IOException e) {
