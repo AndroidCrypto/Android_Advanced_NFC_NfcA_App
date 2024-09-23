@@ -272,10 +272,21 @@ This data was presented by the tag: 1D424A9D B9950000 2CA30000 E1101200
 As the tag is read protected from page 6 onwards it responds pages 04 + 05 
 with the real content and the content of "pages 06 + 07" is the data from 
 pages 00 + 01 due to the "roll over" management.                                    
+
+--------------------
+Read pages from page 08
+Could not read the content of the tag, maybe it is read protected ?
+Exception from operation: readPage for 8 failed with IOException: Transceive failed
+--------------------
+on page 8 readPage failed with IOException: Transceive failed
+
+
                                     
 ```
 
-(and 05, 06 and 07 aswell)
+
+
+(and 05, 06 and 07 as well)
 
 
 

@@ -132,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runChangePasswordDefaultToCustom = false;
                 boolean runChangePasswordCustomToDefault = false;
 
-                boolean runReadConfiguration = true;
+                boolean runReadConfiguration = false;
                 boolean runSetAuthProtectionPage07 = false;
                 boolean runDisableAuthProtection = false;
                 boolean runEnableNfcReadCounter = false;
@@ -148,7 +148,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runReadSignature = false;
                 boolean runReadCounter = false;
                 boolean runReadPages03 = true;
-                boolean runReadPages47 = true;
+                boolean runReadPages47 = false;
+                boolean runReadPages8b = true;
                 boolean runReadConfigPages = false;
                 boolean runFastReadComplete = false;
                 boolean runWritePage04 = false;
@@ -176,6 +177,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "= Read Counter          " + runReadCounter + "\n";
                 output += "= Read Pages 0..3       " + runReadPages03 + "\n";
                 output += "= Read Pages 4..7       " + runReadPages47 + "\n";
+                output += "= Read Pages 8..11      " + runReadPages8b + "\n";
                 output += "= Read Config Pages     " + runReadConfigPages + "\n";
                 output += "= FastRead compl.Tag    " + runFastReadComplete + "\n";
                 output += "= Write Page 04         " + runWritePage04 + "\n";
@@ -850,6 +852,40 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         if (ti.userMemory > 0) {
                             output += "Read pages from page 04" + "\n";
                             byte[] pagesData = readPage(nfcA, 4); // page 04 is the first page of the user memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from pages 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadPages8b) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read pages from page 08" + "\n";
+                            byte[] pagesData = readPage(nfcA, 8); // page 04 is the first page of the user memory
                             boolean readSuccess = false;
                             if (pagesData == null) {
                                 output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
