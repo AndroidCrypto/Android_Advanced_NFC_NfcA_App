@@ -370,6 +370,8 @@ public class NfcACommands {
         }
         cp.setAsciiMirroring(mirrorUidAscii, mirrorNfcCounter, startPage, startByteInPage);
 
+/*
+// this code is here due to wrong writings in the past !
         // one time setting for enabling Strong Modulation
         byte c0Byte0 = cp.getC0Byte0();
         c0Byte0 = setBitInByte(c0Byte0, 2);
@@ -382,6 +384,7 @@ public class NfcACommands {
         cp.setC0Byte3((byte) 0xFF);
         //
         cp.buildConfigurationPages01();
+*/
 
         // step 3
         byte[] configPage0 = cp.getConfigurationPage0();

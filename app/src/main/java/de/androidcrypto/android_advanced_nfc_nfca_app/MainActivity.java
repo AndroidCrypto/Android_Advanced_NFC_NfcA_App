@@ -126,7 +126,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // in connected state we are doing all our jobs
 
                 boolean runGetVersion = true; // don't skip this as we need the tag data for later working
-                boolean runAuthenticationDefault = true;
+                boolean runAuthenticationDefault = false;
                 boolean runAuthenticationCustom = false;
                 boolean runChangePasswordDefaultToCustom = false;
                 boolean runChangePasswordCustomToDefault = false;
@@ -135,13 +135,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runSetAuthProtectionPage07 = false;
                 boolean runDisableAuthProtection = false;
                 boolean runEnableNfcReadCounter = false;
-                boolean runDisableNfcReadCounter = false;
+                boolean runDisableNfcReadCounter = true;
                 boolean runSetNfcReadCounterPwdProtected = false;
                 boolean runUnsetNfcReadCounterPwdProtected = false;
                 boolean runSetAutProtectionWriteOnly = false;
                 boolean runSetAuthProtectionReadWrite = false;
 
-                boolean runEnableAsciiMirroring = true;
+                boolean runEnableAsciiMirroring = false;
                 boolean runDisableAsciiMirroring = false;
 
                 boolean runReadSignature = false;
@@ -925,7 +925,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         }
                     } else {
                         output += lineDivider + "\n";
-                        output += "FasrRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                        output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
                     }
                 }
 
