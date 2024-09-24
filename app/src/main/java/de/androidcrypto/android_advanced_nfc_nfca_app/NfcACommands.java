@@ -5,9 +5,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateBy
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.intFrom3ByteArrayLsb;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
-import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.setBitInByte;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
-import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.unsetBitInByte;
 
 import android.nfc.TagLostException;
 import android.nfc.tech.NfcA;
@@ -15,6 +13,7 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -149,11 +148,58 @@ public class NfcACommands {
     }
 
     /**
+     * This is an unofficial command or better helper method. It reads the content of the tag,
+     * beginning with page 00 up to page <numberOfPages>, so in total <numberOfPages> + 1 pages.
+     * It uses the fastRead method of this library, in case of any error the method will return NULL.
+     * @param nfcA
+     * @param numberOfPages
+     * @return
+     */
+    public static byte[] readFullTag(NfcA nfcA, int maxTransceiveLength, int numberOfPages) {
+        // don't extend the maxTransceiveLength as it might returns strange data
+        // simple calculation including some protocol header bytes
+        int maxFastReadPages = ((maxTransceiveLength - 16) / 4);
+        //System.out.println("maxFastReadPages: " + maxFastReadPages);
+        // so run this way to read the complete content of the tag
+        byte[] completeContentFastRead = new byte[0];
+        int pagesReadSoFar = 0;
+        boolean fastReadSuccess = true;
+        while (pagesReadSoFar < numberOfPages) {
+            // if we can't read the remaining data in a 'full' read we are just reading the remaining data
+            if ((numberOfPages - pagesReadSoFar) < maxFastReadPages) {
+                maxFastReadPages = numberOfPages - pagesReadSoFar + 1;
+                //System.out.println("Corrected maxFastReadPages to: " + maxFastReadPages);
+            }
+            //System.out.println("fastReadContent from " + pagesReadSoFar + " to " + (pagesReadSoFar + maxFastReadPages - 1));
+            byte[] contentRead = fastReadPage(nfcA, pagesReadSoFar, (pagesReadSoFar + maxFastReadPages - 1));
+            //System.out.println(printData("contentRead", contentRead));
+            //System.out.println("contentRead length: " + contentRead.length);
+            //System.out.println("(maxFastReadPages * ti.bytesPerPage): " + (maxFastReadPages * ti.bytesPerPage));
+            // did we receive all data ?
+            if ((contentRead != null) && (contentRead.length == (maxFastReadPages * 4))) {
+                // we received the complete content
+                completeContentFastRead = concatenateByteArrays(completeContentFastRead, contentRead);
+                pagesReadSoFar += maxFastReadPages;
+            } else {
+                fastReadSuccess = false;
+                pagesReadSoFar = numberOfPages; // end reading
+            }
+        }
+        if (!fastReadSuccess) {
+            Log.e(TAG, "Error while reading the content of the tag, e.g. some parts of the tag might be read protected");
+            return null;
+        } else {
+            return completeContentFastRead;
+        }
+    }
+
+    /**
      * Write data to one page. The data to write need to be exactly 4 bytes long. The page number needs
      * be in the range of the tag memory.
      * There is just a limitation on writing to page numbers below 4 - that is restricted. You can still
      * write to the areas at the end of the tag that are sensitive too (e.g. Dynamic Lock Bytes on an
      * NTAG21x tag).
+     *
      * @param nfcA
      * @param pageNumber
      * @param pageData4Byte
@@ -207,6 +253,7 @@ public class NfcACommands {
     /**
      * This write method accepts data lengths up to 40 bytes that are split into chunks of 4 bytes each.
      * Beginning with the startPageNumber all data is written subsequently to the pages.
+     *
      * @param nfcA
      * @param startPageNumber
      * @param bulkPageData
@@ -265,7 +312,7 @@ public class NfcACommands {
                 return false; // the lastExceptionString was already filled by writePage
             }
             copyIndex = copyIndex + 4;
-            pageIndex ++;
+            pageIndex++;
             remainingBytes = remainingBytes - 4;
         }
         return true;
@@ -274,6 +321,7 @@ public class NfcACommands {
     /**
      * Returns the version data of the tag that can be of dirrent length, depending on the tag type.
      * Modern tags respond with about >20 bytes, an NTAG21x or MIFARE Ultralight responds 8 bytes.
+     *
      * @param nfcA
      * @return
      */
@@ -300,6 +348,7 @@ public class NfcACommands {
     /**
      * When the tags signalizes that there are more data to retrieve it sends an "0xAFh" byte. The
      * NFC reader can simply send an '0xAFh' command and the tag responds with more data.
+     *
      * @param nfcA
      * @return
      */
@@ -397,6 +446,42 @@ public class NfcACommands {
     }
 
     /**
+     * Increases one of the counters on a MIFARE Ultralight EV1 tag by 1.
+     * @param nfcA
+     * @param counterNumber
+     * @return ACK or NAK
+     */
+    public static byte[] increaseCounterByOne(NfcA nfcA, int counterNumber) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return new byte[]{NAK_INVALID_ARGUMENT};
+        }
+        if ((counterNumber < 0) || (counterNumber > 2)) {
+            Log.e(TAG, "The counterNumber is out of range 0..2, aborted");
+            lastExceptionString = "The counterNumber is out of range 0..2, aborted";
+            return new byte[]{NAK_INVALID_ARGUMENT};
+        }
+        byte[] response = null;
+        try {
+            response = nfcA.transceive(new byte[]{
+                    (byte) 0xA5, // Increase Counter command
+                    (byte) (counterNumber & 0xff),
+                    (byte) 0x01, // LSB order
+                    (byte) 0x00,
+                    (byte) 0x00,
+                    (byte) 0x00, // this byte is ignored
+            });
+            return response; // should the ACK status byte
+        } catch (IOException e) {
+            Log.e(TAG, "IOException when reading a counter: " + e.getMessage());
+            lastExceptionString = "Increase Counter failed with IOException: " + e.getMessage();
+            return new byte[]{NAK_IOEXCEPTION_ERROR};
+        }
+    }
+
+    /**
      * Read the 32 bytes long Electronic Signature of the tag that is generated on the tag UID
      * and the PRIVATE key owned by NXP. The verification of the signature requires the PUBLIC
      * key and the usage of an ECC Signature validation, this is protected under NDA and not
@@ -430,23 +515,22 @@ public class NfcACommands {
     /**
      * Set the ASCII Mirror feature of an NTAG21x tag. If both mirrorUidAscii and mirrorNfcCounter are
      * false the mirroring will be disabled
+     *
      * @param nfcA
      * @param startConfigurationPages
      * @param mirrorUidAscii
      * @param mirrorNfcCounter
-     * @param startPage needs to be > 3 and < last user memory page - <data for mirroring>
-     * @param startByteInPage needs to be in range 0 .. 3
-     * @return
-     *
-     * Note on <data for mirroring> As the UID data is returned in Hex encoding we need more space:
-     *         UID mirroring:           14 bytes (4 pages)
-     *         NFC Counter mirroring:   6 bytes (2 pages)
-     *         UID + Counter mirroring: 21 bytes (6 pages, 14 for UID, 6 for Counter + 1 for separation
-     *         The separation character will be 0x78h = 'x'
-     *
+     * @param startPage               needs to be > 3 and < last user memory page - <data for mirroring>
+     * @param startByteInPage         needs to be in range 0 .. 3
+     * @return Note on <data for mirroring> As the UID data is returned in Hex encoding we need more space:
+     * UID mirroring:           14 bytes (4 pages)
+     * NFC Counter mirroring:   6 bytes (2 pages)
+     * UID + Counter mirroring: 21 bytes (6 pages, 14 for UID, 6 for Counter + 1 for separation
+     * The separation character will be 0x78h = 'x'
+     * <p>
      * Note on sanity check for startPage: the minimum is 4 and the maximum that gets checked is page 221
-     *         so there is enough space to mirror the UID and NFC Counter. This maximum is for an
-     *         NTAG216 tag, if you use such a value for a startPage on an NTAG213 or NTAG215 it will fail !
+     * so there is enough space to mirror the UID and NFC Counter. This maximum is for an
+     * NTAG216 tag, if you use such a value for a startPage on an NTAG213 or NTAG215 it will fail !
      */
     public static boolean setAsciiMirroring(NfcA nfcA, int startConfigurationPages, boolean mirrorUidAscii, boolean mirrorNfcCounter, int startPage, int startByteInPage) {
         // sanity checks
@@ -513,7 +597,7 @@ public class NfcACommands {
         byte[] configPage0 = cp.getConfigurationPage0();
         byte[] configPage1 = cp.getConfigurationPage1();
         byte[] writeConfig0Response = writePage(nfcA, startConfigurationPages, configPage0);
-        if (checkResponse(writeConfig0Response[0])){
+        if (checkResponse(writeConfig0Response[0])) {
             Log.d(TAG, "Write Configuration Page 0 SUCCESS");
         } else {
             Log.e(TAG, "Write Configuration Page 0 FAILURE");
@@ -521,7 +605,7 @@ public class NfcACommands {
             return false;
         }
         byte[] writeConfig1Response = writePage(nfcA, startConfigurationPages + 1, configPage1);
-        if (checkResponse(writeConfig1Response[0])){
+        if (checkResponse(writeConfig1Response[0])) {
             Log.d(TAG, "Write Configuration Page 1 SUCCESS");
             return true;
         } else {
@@ -878,7 +962,7 @@ public class NfcACommands {
         }
     }
 
-    public static boolean changePasswordPack (NfcA nfcA, int passwordPageNumber, byte[] oldPassword4Bytes, byte[] oldPack2Bytes, byte[] newPassword4Bytes, byte[] newPack2Bytes) {
+    public static boolean changePasswordPack(NfcA nfcA, int passwordPageNumber, byte[] oldPassword4Bytes, byte[] oldPack2Bytes, byte[] newPassword4Bytes, byte[] newPack2Bytes) {
         // sanity checks
         if ((nfcA == null) || (!nfcA.isConnected())) {
             Log.e(TAG, "nfcA is NULL or not connected, aborted");

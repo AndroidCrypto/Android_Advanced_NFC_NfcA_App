@@ -11,10 +11,12 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.checkR
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.fastReadPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getMoreData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.getVersion;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.increaseCounterByOne;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.lastExceptionString;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readConfigurationPages;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readCounter;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readCounterInt;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readFullTag;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readPage;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.readSignature;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.reconnect;
@@ -127,7 +129,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // in connected state we are doing all our jobs
 
                 boolean runGetVersion = true; // don't skip this as we need the tag data for later working
-                boolean runAuthenticationDefault = false;
+                boolean runAuthenticationDefault = true;
                 boolean runAuthenticationCustom = false;
                 boolean runChangePasswordDefaultToCustom = false;
                 boolean runChangePasswordCustomToDefault = false;
@@ -146,14 +148,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runEnableAsciiMirroring = false;
                 boolean runDisableAsciiMirroring = false;
 
-                boolean runReadSignature = true;
-                boolean runReadCounter = true;
+                boolean runReadSignature = false;
+                boolean runReadCounter = false;
+                boolean runIncreaseCounter0 = false;
                 boolean runReadPages03 = false;
                 boolean runReadPages47 = false;
                 boolean runReadPages8b = false;
                 boolean runReadPagesf0 = false; // test the behavior for a request outside the tag memory
                 boolean runReadConfigPages = false;
-                boolean runFastReadComplete = false;
+                boolean runFastRead0015 = false;
+                boolean runFastReadComplete = true;
                 boolean runWritePage04 = false;
                 boolean runWriteBulkDataPage04 = false;
 
@@ -177,11 +181,13 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "= - ASCII UID/Cnt mirr  " + runDisableAsciiMirroring + "\n";
                 output += "= Read Signature        " + runReadSignature + "\n";
                 output += "= Read Counter          " + runReadCounter + "\n";
+                output += "= Increase Counter 0    " + runIncreaseCounter0 + "\n";
                 output += "= Read Pages 0..3       " + runReadPages03 + "\n";
                 output += "= Read Pages 4..7       " + runReadPages47 + "\n";
                 output += "= Read Pages 8..11      " + runReadPages8b + "\n";
-                output += "= Read Pages F0..F3      " + runReadPagesf0 + "\n";
+                output += "= Read Pages F0..F3     " + runReadPagesf0 + "\n";
                 output += "= Read Config Pages     " + runReadConfigPages + "\n";
+                output += "= FastRead Pages 00-15  " + runFastRead0015 + "\n";
                 output += "= FastRead compl.Tag    " + runFastReadComplete + "\n";
                 output += "= Write Page 04         " + runWritePage04 + "\n";
                 output += "= Write Bulk D Page 04  " + runWriteBulkDataPage04 + "\n";
@@ -807,9 +813,40 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += printData("readCounter 1 Response", readCounterResponse) + "\n";
                         readCounterResponseInt = readCounterInt(nfcA, 1);
                         output += "readCounter 1 Response: " + readCounterResponseInt + "\n";
+
+
+                        //if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
+                        output += lineDivider + "\n";
+                        output += "Increase the Counter 0 by 1" + "\n";
+                        // increasing counter 0
+                        output += "== Increase the counter 0 by one ==" + "\n";
+                        byte[] increaseCounterResponse = increaseCounterByOne(nfcA, 0);
+                        if (checkResponse(increaseCounterResponse[0])) {
+                            output += "IncreaseCounter Tag response is ACK -> Success" + "\n";
+                        } else {
+                            output += "IncreaseCounter Tag response is NAK -> FAILURE" + "\n";
+                        }
                     } else {
                         output += lineDivider + "\n";
                         output += "Read Counter 0 + 1 is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runIncreaseCounter0) {
+                    // increases the counter 0 on the tag by 1
+                    // restricted to MIFARE Ultralight EV1
+                    if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
+                        output += lineDivider + "\n";
+                        output += "Increase the Counter 0 by 1" + "\n";
+                        byte[] increaseCounterResponse = increaseCounterByOne(nfcA, 0);
+                        if (checkResponse(increaseCounterResponse[0])) {
+                            output += "IncreaseCounter 0 Tag response is ACK -> Success" + "\n";
+                        } else {
+                            output += "IncreaseCounter 0 Tag response is NAK -> FAILURE" + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Increase Counter is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
                     }
                 }
 
@@ -983,56 +1020,24 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 }
 
-                if (runFastReadComplete) {
-                    // fast read the complete tag content
+                if (runFastRead0015) {
+                    // fast read the pages 00-15 tag content
                     // restricted to NTAG21x and MIFARE Ultralight EV1
                     if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
                         output += lineDivider + "\n";
                         if (ti.tagHasFastReadCommand) {
-                            output += "FastRead pages from page 00" + "\n";
-                            //pagesData = fastReadPage(nfcA, 0, 44); // NTAG213 range 00 - 44
-                            //pagesData = fastReadPage(nfcA, 0, 130); // NTAG215 range 00 - 134
-                            //pagesData = fastReadPage(nfcA, 0, 230); // NTAG216 range 00 - 230
-
-                            // don't extend the maxTransceiveLength as it might returns strange data
-                            // simple calculation including some protocol header bytes
-                            int maxFastReadPages = ((maxTransceiveLength - 16) / 4);
-                            System.out.println("maxFastReadPages: " + maxFastReadPages);
-                            // so run this way to read the complete content of the tag
-                            byte[] completeContentFastRead = new byte[0];
-                            System.out.println("completeContentFastRead length: " + completeContentFastRead.length);
-                            System.out.println("ti.tagMemoryEndPage:" + ti.tagMemoryEndPage);
-                            int pagesReadSoFar = 0;
-                            boolean fastReadSuccess = true;
-                            while (pagesReadSoFar < ti.tagMemoryEndPage) {
-                                // if we can't read the remaining data in a 'full' read we are just reading the remaining data
-                                if ((ti.tagMemoryEndPage - pagesReadSoFar) < maxFastReadPages) {
-                                    maxFastReadPages = ti.tagMemoryEndPage - pagesReadSoFar + 1;
-                                    System.out.println("Corrected maxFastReadPages to: " + maxFastReadPages);
-                                }
-                                System.out.println("fastReadContent from " + pagesReadSoFar + " to " + (pagesReadSoFar + maxFastReadPages - 1));
-                                byte[] contentRead = fastReadPage(nfcA, pagesReadSoFar, (pagesReadSoFar + maxFastReadPages - 1));
-                                System.out.println(printData("contentRead", contentRead));
-                                //System.out.println("contentRead length: " + contentRead.length);
-                                System.out.println("(maxFastReadPages * ti.bytesPerPage): " + (maxFastReadPages * ti.bytesPerPage));
-                                // did we receive all data ?
-                                if ((contentRead != null) && (contentRead.length == (maxFastReadPages * ti.bytesPerPage))) {
-                                    // we received the complete content
-                                    completeContentFastRead = concatenateByteArrays(completeContentFastRead, contentRead);
-                                    pagesReadSoFar += maxFastReadPages;
-                                } else {
-                                    fastReadSuccess = false;
-                                    pagesReadSoFar = ti.tagMemoryEndPage; // end reading
-                                }
-                            }
-                            if (!fastReadSuccess) {
-                                output += "Error while reading the complete content of the tag, e.g. some parts of the tag might be read protected" + "\n";
-                                output += "This is the skipped content:\n" + printData("skipped tag content", completeContentFastRead) + "\n";
-                            } else {
-                                output += printData("Full tag content", completeContentFastRead) + "\n";
+                            output += "FastRead pages from page 00 to 15" + "\n";
+                            int startPage = 0;
+                            int endPage = 15;
+                            byte[] contentRead = fastReadPage(nfcA, startPage, endPage);
+                            if ((contentRead != null) && (contentRead.length == (endPage - startPage + 1) * 4)) {
+                                output += printData("content pages 00-15\n", contentRead) + "\n";
                                 output += lineDivider + "\n";
                                 output += "ASCII content" + "\n";
-                                output += new String(completeContentFastRead, StandardCharsets.UTF_8) + "\n";
+                                output += new String(contentRead, StandardCharsets.UTF_8) + "\n";
+                            } else {
+                                output += "Error while reading the content in pages 00-15, e.g. some parts of the tag might be read protected" + "\n";
+
                             }
                         } else {
                             output += "FastRead skipped, tag has no command" + "\n";
@@ -1042,6 +1047,38 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
                     }
                 }
+
+
+                if (runFastReadComplete) {
+                    // fast read the complete tag content
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.tagHasFastReadCommand) {
+                            output += "FastRead pages from page 00-end" + "\n";
+                            //pagesData = fastReadPage(nfcA, 0, 44); // NTAG213 range 00 - 44
+                            //pagesData = fastReadPage(nfcA, 0, 130); // NTAG215 range 00 - 134
+                            //pagesData = fastReadPage(nfcA, 0, 230); // NTAG216 range 00 - 230
+
+                            byte[] completeContentFastRead = readFullTag(nfcA, maxTransceiveLength, ti.tagMemoryEndPage);
+                            System.out.println(printData("fastReadComplete\n", completeContentFastRead));
+                            if ((completeContentFastRead != null) && (completeContentFastRead.length == ((ti.tagMemoryEndPage + 1) * ti.bytesPerPage))) {
+                                output += printData("Full tag content", completeContentFastRead) + "\n";
+                                output += lineDivider + "\n";
+                                output += "ASCII content" + "\n";
+                                output += new String(completeContentFastRead, StandardCharsets.UTF_8) + "\n";
+                            } else {
+                                output += "Error while reading the complete content of the tag, e.g. some parts of the tag might be read protected" + "\n";
+                            }
+                        }
+                    } else {
+                        output += "FastRead skipped, tag has no command" + "\n";
+                    }
+                } else {
+                    output += lineDivider + "\n";
+                    output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                }
+
 
 /*
 maxTranceiveLength = 253 / 4 = 63.25 -> read 60 pages only
@@ -1162,7 +1199,7 @@ NTAG216 fastRead 0 - 230 length: 412 of 924
                 if (runWriteBulkDataPage04) {
                     output += lineDivider + "\n";
                     output += "write bulk data on page 04" + "\n";
-                    byte[] bulkDataToWrite = "AndroidCrypto NFC NfcA Tutorial".getBytes(StandardCharsets.UTF_8);
+                    byte[] bulkDataToWrite = "AndroidCrypto NFC NfcA Tutorial                ".getBytes(StandardCharsets.UTF_8);
                     boolean writeBulkDataSuccess = writeBulkData(nfcA, 4, bulkDataToWrite);
                     output += "writeBulkDataToPage 04 success: " + writeBulkDataSuccess + "\n";
                 }
