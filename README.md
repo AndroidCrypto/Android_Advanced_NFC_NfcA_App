@@ -235,19 +235,27 @@ UID length: 7 data:                    1DAC2BB9950000
 Result of Originality Signature verification: false
 ```
 
-### Log file of reading page 04 with Read AuthProtection starting page 06 and successful authentication
+
+
+### Log file of reading pages 0-3, 4-7 and 8-11 with Read AuthProtection starting page 05 and without authentication
 
 ```plaintext
+--------------------
+Read pages from page 00
+data from pages 0, 1, 2 and 3: 1D424A9DB99500002CA30000E1101200
+BJ���????,�????�??
 --------------------
 Read pages from page 04
-data from pages 4, 5, 6 and 7: 416E64726F696443727970746F204E46
-AndroidCrypto NF
+data from pages 4, 5, 6 and 7: 416E64721D424A9DB99500002CA30000
+AndrBJ���????,�????
 --------------------
-```
+Read pages from page 08
+Could not read the content of the tag, maybe it is read protected ?
+Exception from operation: readPage for page 8 failed with IOException: Transceive failed
+--------------------
 
-### Log file of reading page 04 with Read AuthProtection starting page 06 and without authentication
 
-```plaintext
+
 --------------------
 Read pages from page 04
 data from pages 4, 5, 6 and 7: 416E64721D424A9DB99500002CA30000
@@ -276,18 +284,28 @@ pages 00 + 01 due to the "roll over" management.
 --------------------
 Read pages from page 08
 Could not read the content of the tag, maybe it is read protected ?
-Exception from operation: readPage for 8 failed with IOException: Transceive failed
+Exception from operation: readPage for page 8 failed with IOException: Transceive failed
 --------------------
-on page 8 readPage failed with IOException: Transceive failed
-
-
-                                    
+on page 8 readPage failed with IOException: Transceive failed                  
 ```
 
+### Log file of reading pages 0-3, 4-7 and 8-11 with Read AuthProtection starting page 05 and successful authentication
 
-
-(and 05, 06 and 07 as well)
-
+```plaintext
+--------------------
+Read pages from page 00
+data from pages 0, 1, 2 and 3: 1D424A9DB99500002CA30000E1101200
+BJ���????,�????�??
+--------------------
+Read pages from page 04
+data from pages 4, 5, 6 and 7: 416E64726F696443727970746F204E46
+AndroidCrypto NF
+--------------------
+Read pages from page 08
+data from pages 8, 9, 10 and 11: 43204E666341205475746F7269616C00
+C NfcA Tutorial??
+--------------------
+```
 
 
 ### NTAG ACK and NAK responses
@@ -354,6 +372,15 @@ Default value: 00h : MIRROR_Page defines the page for the beginning of the ASCII
 Bote: If you set the NFC Read Counter mirror in MIRROR byte (Bit 7, MIRROR_CONF) you need to enable the NFC 
 Read Counter in the ACCESS byte (Bit 4, NFC_CNT_EN) or this value is not mirrored in the user memory ! 
 
+
+### Signature
+
+```plaintext
+Fudan NTAG213 1 UID 1D424AB9950000
+readSignatureResponse length: 32 data: 1D424A9DB99500001D424A9DB99500001D424A9DB99500001D424A9DB9950000
+Fudan NTAG213 2 UID 1DAC2BB9950000
+readSignatureResponse length: 32 data: 1DAC2B12B99500001DAC2B12B99500001DAC2B12B99500001DAC2B12B9950000
+```
 
 # OLD DESCRIPTION
 

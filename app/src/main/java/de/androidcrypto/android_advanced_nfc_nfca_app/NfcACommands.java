@@ -111,7 +111,7 @@ public class NfcACommands {
             return response;
         } catch (IOException e) {
             Log.e(TAG, "on page " + pageNumber + " readPage failed with IOException: " + e.getMessage());
-            lastExceptionString = "readPage for " + pageNumber + " failed with IOException: " + e.getMessage();
+            lastExceptionString = "readPage for page " + pageNumber + " failed with IOException: " + e.getMessage();
         }
         return null;
     }
@@ -151,6 +151,9 @@ public class NfcACommands {
     /**
      * Write data to one page. The data to write need to be exactly 4 bytes long. The page number needs
      * be in the range of the tag memory.
+     * There is just a limitation on writing to page numbers below 4 - that is restricted. You can still
+     * write to the areas at the end of the tag that are sensitive too (e.g. Dynamic Lock Bytes on an
+     * NTAG21x tag).
      * @param nfcA
      * @param pageNumber
      * @param pageData4Byte
@@ -168,7 +171,14 @@ public class NfcACommands {
             lastExceptionString = "writePage pageNumber is < 0, aborted";
             return new byte[]{NAK_INVALID_ARGUMENT};
         }
+        // this check avoids to write to pages 0, 1, 2 and 3 as that are blocked pages or One Time Programmable areas
+        if (pageNumber < 4) {
+            Log.e(TAG, "writePage pageNumber is < 4, aborted");
+            lastExceptionString = "writePage pageNumber is < 4 (avoid writing to OTP areas), aborted";
+            return new byte[]{NAK_INVALID_ARGUMENT};
+        }
         // there is no check on upper limit - this is tag specific
+        // This method also does not prevent against writing in sensitive areas below user memory
         if (pageData4Byte == null) {
             Log.e(TAG, "writePage pageData4Byte is NULL, aborted");
             lastExceptionString = "writePage pageData4Byte is NULL, aborted";
@@ -214,6 +224,13 @@ public class NfcACommands {
             lastExceptionString = "writePage startPageNumber is < 0, aborted";
             return false;
         }
+        // this check avoids to write to pages 0, 1, 2 and 3 as that are blocked pages or One Time Programmable areas
+        if (startPageNumber < 4) {
+            Log.e(TAG, "writePage startPageNumber is < 4, aborted");
+            lastExceptionString = "writePage startPageNumber is < 4 (avoid writing to OTP areas), aborted";
+            return false;
+        }
+        // This method also does not prevent against writing in sensitive areas below user memory
         if (bulkPageData == null) {
             Log.e(TAG, "writePage bulkPageData is NULL, aborted");
             lastExceptionString = "writePage bulkPageData is NULL, aborted";
@@ -369,7 +386,7 @@ public class NfcACommands {
         try {
             response = nfcA.transceive(new byte[]{
                     (byte) 0x39,  // Read Counter command
-                    (byte) (counterNumber & 0xff) // in case Ultralight EV1 0..2, NTAG21x 2
+                    (byte) (counterNumber & 0xff) // in case of Ultralight EV1 0..2, NTAG21x 2
             });
             return response;
         } catch (IOException e) {
@@ -400,7 +417,7 @@ public class NfcACommands {
         try {
             response = nfcA.transceive(new byte[]{
                     (byte) 0x3C, // Read Signature command
-                    (byte) 0x00 // Address is FRU, internally fixed to 0x00h
+                    (byte) 0x00 // Address is RFUI, internally fixed to 0x00h
             });
             return response;
         } catch (IOException e) {

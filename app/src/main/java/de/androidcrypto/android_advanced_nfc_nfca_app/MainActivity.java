@@ -133,7 +133,8 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runChangePasswordCustomToDefault = false;
 
                 boolean runReadConfiguration = false;
-                boolean runSetAuthProtectionPage07 = false;
+                // for enabling the following methods the readConfiguration needs to be true
+                boolean runSetAuthProtectionPage05 = false;
                 boolean runDisableAuthProtection = false;
                 boolean runEnableNfcReadCounter = false;
                 boolean runDisableNfcReadCounter = false;
@@ -145,11 +146,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runEnableAsciiMirroring = false;
                 boolean runDisableAsciiMirroring = false;
 
-                boolean runReadSignature = false;
-                boolean runReadCounter = false;
-                boolean runReadPages03 = true;
+                boolean runReadSignature = true;
+                boolean runReadCounter = true;
+                boolean runReadPages03 = false;
                 boolean runReadPages47 = false;
-                boolean runReadPages8b = true;
+                boolean runReadPages8b = false;
+                boolean runReadPagesf0 = false; // test the behavior for a request outside the tag memory
                 boolean runReadConfigPages = false;
                 boolean runFastReadComplete = false;
                 boolean runWritePage04 = false;
@@ -163,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "= chg Password->Custom  " + runChangePasswordDefaultToCustom + "\n";
                 output += "= chg Password->Default " + runChangePasswordCustomToDefault + "\n";
                 output += "= Read Configuration    " + runReadConfiguration + "\n";
-                output += "= Enable Auth Prot.P07  " + runSetAuthProtectionPage07 + "\n";
+                output += "= Enable Auth Prot.P05  " + runSetAuthProtectionPage05 + "\n";
                 output += "= Disable Auth Prot     " + runDisableAuthProtection + "\n";
                 output += "= Enable NFC Read Cnt   " + runEnableNfcReadCounter + "\n";
                 output += "= Disable NFC Read Cnt  " + runDisableNfcReadCounter + "\n";
@@ -178,6 +180,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 output += "= Read Pages 0..3       " + runReadPages03 + "\n";
                 output += "= Read Pages 4..7       " + runReadPages47 + "\n";
                 output += "= Read Pages 8..11      " + runReadPages8b + "\n";
+                output += "= Read Pages F0..F3      " + runReadPagesf0 + "\n";
                 output += "= Read Config Pages     " + runReadConfigPages + "\n";
                 output += "= FastRead compl.Tag    " + runFastReadComplete + "\n";
                 output += "= Write Page 04         " + runWritePage04 + "\n";
@@ -551,11 +554,11 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
                         output += cp.dump() + "\n";
 
-                        if (runSetAuthProtectionPage07) {
-                            output += "Enable AuthProtection Read&Write to pages 07ff" + "\n";
+                        if (runSetAuthProtectionPage05) {
+                            output += "Enable AuthProtection Read&Write to pages 05ff" + "\n";
                             //ConfigurationPages cp = new ConfigurationPages(ConfigurationPages.TagType.NTAG21x, configurationPages);
                             if (cp.isValid()) {
-                                cp.setAuthProtectionPage(7);
+                                cp.setAuthProtectionPage(5);
                                 cp.setAuthProtectionReadWrite();
                                 //
                                 byte[] configPage0 = cp.getConfigurationPage0();
@@ -586,7 +589,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 byte[] configPage1 = cp.getConfigurationPage1();
                                 output += printData("Configuration Page 0", configPage0) + "\n";
                                 output += printData("Configuration Page 1", configPage1) + "\n";
-                                // just need to write configuration page 1
+                                byte[] writeConfig0Response = writePage(nfcA, ti.configurationStartPage, configPage0);
                                 byte[] writeConfig1Response = writePage(nfcA, (ti.configurationStartPage + 1), configPage1);
                                 output += printData("writeConfig1Response", writeConfig1Response) + "\n";
                                 if (checkResponse(writeConfig1Response[0])) {
@@ -895,7 +898,41 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 // in case everything was ok we received the full content of 4 pages = 16 bytes
                                 // in all other cases something went wrong, but those responses are tag type specific
                                 if (pagesData.length == 16) {
-                                    output += "data from pages 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "data from pages 8, 9, 10 and 11: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadPagesf0) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += lineDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read pages from page F0 (should give an error as outside tags memory)" + "\n";
+                            byte[] pagesData = readPage(nfcA, 240); // page 240 is outside the tag memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from pages 240, 241, 242 and 243: " + bytesToHexNpe(pagesData) + "\n";
                                     output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
                                     readSuccess = true;
                                 } else {
@@ -957,7 +994,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                             //pagesData = fastReadPage(nfcA, 0, 130); // NTAG215 range 00 - 134
                             //pagesData = fastReadPage(nfcA, 0, 230); // NTAG216 range 00 - 230
 
-                            //don't extend the maxTransceiveLength as it might gets strange data
+                            // don't extend the maxTransceiveLength as it might returns strange data
                             // simple calculation including some protocol header bytes
                             int maxFastReadPages = ((maxTransceiveLength - 16) / 4);
                             System.out.println("maxFastReadPages: " + maxFastReadPages);
