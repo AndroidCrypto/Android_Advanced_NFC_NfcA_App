@@ -28,6 +28,7 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.NfcACommands.writeP
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToHex;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateByteArrays;
+import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.getTimestamp4Bytes;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
@@ -131,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 // in connected state we are doing all our jobs
 
                 boolean runGetVersion = true; // don't skip this as we need the tag data for later working
-                boolean runAuthenticationDefault = true;
+                boolean runAuthenticationDefault = false;
                 boolean runAuthenticationCustom = false;
                 boolean runChangePasswordDefaultToCustom = false;
                 boolean runChangePasswordCustomToDefault = false;
@@ -150,17 +151,17 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runEnableAsciiMirroring = false;
                 boolean runDisableAsciiMirroring = false;
 
-                boolean runReadSignature = false;
-                boolean runReadCounter = false;
+                boolean runReadSignature = true;
+                boolean runReadCounter = true;
                 boolean runIncreaseCounter0 = false;
-                boolean runReadPages03 = false;
-                boolean runReadPages47 = false;
+                boolean runReadPages03 = true;
+                boolean runReadPages47 = true;
                 boolean runReadPages8b = false;
                 boolean runReadPagesf0 = false; // test the behavior for a request outside the tag memory
                 boolean runReadConfigPages = false;
                 boolean runFastRead0015 = false;
-                boolean runFastReadComplete = true;
-                boolean runWritePage04 = false;
+                boolean runFastReadComplete = false;
+                boolean runWritePage04 = true;
                 boolean runWriteBulkDataPage04 = false;
                 output += chapterDivider + "\n";
                 output += lineDivider + "\n";
@@ -272,198 +273,26 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     output += lineDivider + "\n";
                     if (getVersionSuccess) {
                         output += "Analyze the get version data" + "\n";
-                        VersionInfo tagVersionData = new VersionInfo(getVersionData);
-                        if (getVersionData.length == 8) {
-                            output += tagVersionData.dump8Bytes();
-                        } else {
-                            output += tagVersionData.dump();
-                        }
-                        // take some information from Get Version
-                        ti.tagMajorName = tagVersionData.tagTypeLookup(tagVersionData.getHardwareType());
-                        // data for NTAG21x
-                        if (ti.tagMajorName.equals(VersionInfo.MajorTagType.NTAG_21x.toString())) {
-                            // get more data for NTAG21x family
-                            if (tagVersionData.getHardStorageSizeRaw() == 15) {
-                                // Get Version data: 0004040201000F03
-                                // it is an NTAG213
-                                ti.tagMinorName = "NTAG213";
-                                ti.userMemory = 144;
-                                ti.userMemoryStartPage = 4;
-                                ti.userMemoryEndPage = 39; // included
-                                ti.tagMemoryEndPage = 44;
-                                ti.configurationStartPage = 41;
-                                ti.isTag_NTAG21x = true;
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 17) {
-                                // Get Version data: 0004040201001103
-                                // it is an NTAG215
-                                ti.tagMinorName = "NTAG215";
-                                ti.userMemory = 504;
-                                ti.userMemoryStartPage = 4;
-                                ti.userMemoryEndPage = 129; // included
-                                ti.tagMemoryEndPage = 134;
-                                ti.configurationStartPage = 131;
-                                ti.isTag_NTAG21x = true;
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 19) {
-                                // Get Version data: 0004040201001303
-                                // it is an NTAG216
-                                ti.tagMinorName = "NTAG216";
-                                ti.userMemory = 888;
-                                ti.userMemoryStartPage = 4;
-                                ti.userMemoryEndPage = 225; // included
-                                ti.tagMemoryEndPage = 230;
-                                ti.configurationStartPage = 227;
-                                ti.isTag_NTAG21x = true;
+                        boolean identifyTagOnGetVersionSuccess = ti.identifyTagOnGetVersion(getVersionData);
+                        output += "Result of tag identification: " + identifyTagOnGetVersionSuccess + "\n";
+                        if (identifyTagOnGetVersionSuccess) {
+                            //output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
+                            if (getVersionData.length == 8) {
+                                output += ti.tagVersionData.dump8Bytes();
                             } else {
-                                ti.tagMinorName = "NTAG21x Unknown";
-                                ti.userMemory = 0;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0;
-                            }
-                            // general information for NTAG21x family
-                            ti.tagHasFastReadCommand = true;
-                            ti.tagHasAuthentication = true;
-                            ti.tagHasDesAuthenticationSecurity = false;
-                            ti.tagHasPasswordSecurity = true;
-                            ti.tagHasPageLockBytes = true;
-                            ti.tagHasOtpArea = true;
-                            ti.numberOfCounter = 1;
-                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                        } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
-                            if (tagVersionData.getHardStorageSizeRaw() == 11) {
-                                // Get Version data: 0004030101000B03
-                                // it is an Ultralight EV1 with 48 bytes user memory MF0UL11
-                                ti.tagMinorName = "MF0UL11";
-                                ti.userMemory = 48;
-                                ti.userMemoryStartPage = 4;
-                                ti.userMemoryEndPage = 15; // included
-                                ti.tagMemoryEndPage = 19;
-                                ti.configurationStartPage = 16;
-                                ti.isTag_MIFARE_ULTRALIGHT_EV1 = true;
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 14) {
-                                // Get Version data: 0004030101000E03
-                                // it is an Ultralight EV1 with 128 bytes user memory MF0UL21
-                                ti.tagMinorName = "MF0UL21";
-                                ti.userMemory = 128;
-                                ti.userMemoryStartPage = 4;
-                                ti.userMemoryEndPage = 35; // included
-                                ti.tagMemoryEndPage = 40;
-                                ti.configurationStartPage = 37;
-                                ti.isTag_MIFARE_ULTRALIGHT_EV1 = true;
-                            } else {
-                                ti.tagMinorName = "MF0ULx Unknown";
-                                ti.userMemory = 0;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0;
-                            }
-                            // general information for Ultralight EV1 family
-                            ti.tagHasFastReadCommand = true;
-                            ti.tagHasAuthentication = true;
-                            ti.tagHasDesAuthenticationSecurity = false;
-                            ti.tagHasPasswordSecurity = true;
-                            ti.tagHasPageLockBytes = true;
-                            ti.tagHasOtpArea = true;
-                            ti.numberOfCounter = 3;
-                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                        } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire.toString())) {
-                            // this is a MIFARE DESFire tag that requires other commands to work with
-                            // just analyzing some response data to identify the tag
-                            // get the sub type EV1 / EV2 / EV3
-                            String desfireSubType;
-                            if (tagVersionData.getHardwareVersionMajor() == 1) {
-                                // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722 (EV1 2K)
-                                desfireSubType = "EV1";
-                            } else if (tagVersionData.getHardwareVersionMajor() == 18) {
-                                desfireSubType = "EV2";
-                            } else if (tagVersionData.getHardwareVersionMajor() == 51) {
-                                desfireSubType = "EV3";
-                            } else {
-                                desfireSubType = "EVx (unknown)";
-                            }
-                            // get the storage size
-                            if (tagVersionData.getHardStorageSizeRaw() == 22) {
-                                // Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722
-                                // it is an DESFire EVx 2K with 2048 bytes user memory
-                                ti.tagMinorName = "DESFire " + desfireSubType + " 2K";
-                                ti.userMemory = 2048;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0; // included
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 24) {
-                                // Get Version data: 04010112001605040101020116050004464BDAD37580CF5B9665003521
-                                // it is an DESFire EVx 4K with 4096 bytes user memory
-                                ti.tagMinorName = "DESFire " + desfireSubType + " 4K";
-                                ti.userMemory = 4096;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0; // included
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 26) {
-                                // it is an DESFire EVx 8K with 8192 bytes user memory
-                                ti.tagMinorName = "DESFire " + desfireSubType + " 8K";
-                                ti.userMemory = 8196;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0; // included
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 28) {
-                                // it is an DESFire EVx 16K with 4096 bytes user memory
-                                ti.tagMinorName = "DESFire " + desfireSubType + " 16K";
-                                ti.userMemory = 16384;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0; // included
-                            } else if (tagVersionData.getHardStorageSizeRaw() == 30) {
-                                // it is an DESFire EVx 32K with 4096 bytes user memory
-                                ti.tagMinorName = "DESFire " + desfireSubType + " 32K";
-                                ti.userMemory = 32768;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0; // included
-                            } else {
-                                ti.tagMinorName = "DESFire " + desfireSubType + " unknown memory";
-                                ti.userMemory = 0;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0;
-                            }
-                            // general information for DESFire EVx family
-                            ti.tagHasFastReadCommand = false;
-                            ti.tagHasAuthentication = false;
-                            ti.tagHasDesAuthenticationSecurity = false;
-                            ti.tagHasPasswordSecurity = false;
-                            ti.tagHasPageLockBytes = false;
-                            ti.tagHasOtpArea = false;
-                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                        } else if (ti.tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire_Light.toString())) {
-                            // unfortunately the DESFire light tag does not respond on Get Version command
-                            // when using the NfcA technology (just when using IsoDep class), so this is
-                            // just a stub and usually this is never called
-                            ti.tagMajorName = "DESFire light";
-                            ti.tagMinorName = "DESFire light 640 bytes";
-                            ti.userMemory = 640;
-                            ti.userMemoryStartPage = 0;
-                            ti.userMemoryEndPage = 0; // included
-                            ti.tagHasFastReadCommand = false;
-                            ti.tagHasAuthentication = false;
-                            ti.tagHasDesAuthenticationSecurity = false;
-                            ti.tagHasPasswordSecurity = false;
-                            ti.tagHasPageLockBytes = false;
-                            ti.tagHasOtpArea = false;
-                            output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
-                        } else {
-                            if (!tagIdentificationAtqaSakSuccess) {
-                                ti.tagMajorName = "Unknown2";
-                                ti.tagMinorName = "Unknown3";
-                                ti.userMemory = 0;
-                                ti.userMemoryStartPage = 0;
-                                ti.userMemoryEndPage = 0; // included
-                                ti.tagHasFastReadCommand = false;
-                                ti.tagHasAuthentication = false;
-                                ti.tagHasDesAuthenticationSecurity = false;
-                                ti.tagHasPasswordSecurity = false;
-                                ti.tagHasPageLockBytes = false;
-                                ti.tagHasOtpArea = false;
-                                output += "This is an UNKNOWN tag type" + "\n";
+                                output += ti.tagVersionData.dump();
                             }
                         }
+                        output += "Tag is of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
                     } else {
                         output += "Analyzing of the get version data skipped, using ATQA & SAK for tag identification" + "\n";
                         if (tagIdentificationAtqaSakSuccess) {
                             output += "Tag is probably of type " + ti.tagMinorName + " with " + ti.userMemory + " bytes user memory" + "\n";
                         }
                     }
+                } else {
+                    output += "GetVersion command skipped. Without positive tag identification I can't work properly with the tag, aborted." + "\n";
+                    return;
                 }
 
                 // todo remove from release
@@ -1083,99 +912,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
                 }
 
-
-/*
-maxTranceiveLength = 253 / 4 = 63.25 -> read 60 pages only
-NTAG213 fastRead 0 - 44 length: 180 of 180
-
-NTAG215 fastRead 0 - 100 length: 404 of 540
-NTAG215 fastRead 0 - 130 length: 12 of 540
-NTAG215 fastRead 0 - 230 length: 412 of 924
-NTAG216 fastRead 0 - 230 length: 412 of 924
- */
-/*
-                readSuccess = false;
-                if (pagesData == null) {
-                    output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
-                    output += "Exception from operation: " + lastExceptionString + "\n";
-                } else {
-                    // we got a response but need to check the response data
-                    // in case everything was ok we received the full content of 4 pages = 16 bytes
-                    // in all other cases something went wrong, but those responses are tag type specific
-                    System.out.println(printData("fastRead", pagesData));
-                    if (pagesData.length == 16) {
-                        output += "data from sectors 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
-                        output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
-                        readSuccess = true;
-                    } else if (Arrays.equals(pagesData, hexStringToByteArray("04"))) {
-                        output += "You probably tried to read a MIFARE Classic tag. This is possible after a successful authentication only." + "\n";
-                        output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                    } else if (Arrays.equals(pagesData, hexStringToByteArray("1C"))) {
-                        output += "You probably tried to read a MIFARE DESFire tag. This is possible using another workflow only." + "\n";
-                        output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                    } else if (Arrays.equals(pagesData, hexStringToByteArray("6700"))) {
-                        output += "You probably tried to read a Credit Card tag. This is possible using another workflow only." + "\n";
-                        output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                    } else {
-                        output += "The tag responded with an unknown response. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
-                        output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                    }
-                }
-*/
-
-                // todo make this flexible for different tags
-                // analyze ACCESS byte
-                // todo check for NTAG213
-                // AUTH0 is on page 41 byte 4, ACCESS on page 42 byte 0
-                /*
-                byte[] pagesData41 = readPage(nfcA, 41);
-                System.out.println(printData("pagesData41", pagesData41));
-                byte auth0 = pagesData41[3];
-                output += printData("auth0", new byte[]{auth0}) + "\n";
-                byte accessByte = pagesData41[4];
-                if (testBit(accessByte, 0)) {
-                    output += "Access Byte Bit 0 AuthLim0 1" + "\n";
-                } else {
-                    output += "Access Byte Bit 0 AuthLim0 0" + "\n";
-                }
-                if (testBit(accessByte, 1)) {
-                    output += "Access Byte Bit 1 AuthLim1 1" + "\n";
-                } else {
-                    output += "Access Byte Bit 1 AuthLim1 0" + "\n";
-                }
-                if (testBit(accessByte, 2)) {
-                    output += "Access Byte Bit 2 AuthLim2 1" + "\n";
-                } else {
-                    output += "Access Byte Bit 2 AuthLim2 0" + "\n";
-                }
-                if (testBit(accessByte, 3)) {
-                    output += "Access Byte Bit 3 CountProt 1 enabled" + "\n";
-                } else {
-                    output += "Access Byte Bit 3 CountProt 0 disabled" + "\n";
-                }
-                if (testBit(accessByte, 4)) {
-                    output += "Access Byte Bit 4 CountEnab 1 enabled" + "\n";
-                } else {
-                    output += "Access Byte Bit 4 CountEnab 0 disabled" + "\n";
-                }
-                output += "Access Byte Bit 5 RFU" + "\n";
-                if (testBit(accessByte, 6)) {
-                    output += "Access Byte Bit 6 ConfigLocked 1 enabled" + "\n";
-                } else {
-                    output += "Access Byte Bit 6 CountLocked 0 disabled" + "\n";
-                }
-                if (testBit(accessByte, 7)) {
-                    output += "Access Byte Bit 7 1 Read&Write Access AUTH prot" + "\n";
-                } else {
-                    output += "Access Byte Bit 7 0 Write Access AUTH prot" + "\n";
-                }
-*/
-
                 if (runWritePage04) {
                     output += chapterDivider + "\n";
                     output += "write on page 04" + "\n";
-                    output += "Uses the WRITE command to write a 4bytes long array to page 4" + "\n";
-                    byte[] dataToWrite = "1234".getBytes(StandardCharsets.UTF_8);
+                    output += "Uses the WRITE command to write a 4 bytes long array to page 4" + "\n";
+                    byte[] dataToWrite = getTimestamp4Bytes();
+                    output += printData("dataToWrite on page 04", dataToWrite) + "\n";
                     byte[] writeResponse = writePage(nfcA, 4, dataToWrite);
                     output += printData("writeToPage 04 response", writeResponse) + "\n";
                     // I'm using byte 0 only for checking

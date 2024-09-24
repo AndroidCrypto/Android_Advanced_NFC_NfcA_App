@@ -1,5 +1,12 @@
 package de.androidcrypto.android_advanced_nfc_nfca_app;
 
+import android.annotation.SuppressLint;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Calendar;
+import java.util.Date;
+
 /**
  * This class holds all helper methods for the app
  */
@@ -90,5 +97,15 @@ public class Utils {
     // position is 0 based starting from right to left
     public static byte unsetBitInByte(byte input, int pos) {
         return (byte) (input & ~(1 << pos));
+    }
+
+    // get a 4 bytes long array with current hour and minute in ASCII encoding
+    // returns 0x32333532h = '2352' = 23:52
+    // this uses LocalDateTime that is available on SDK 26+
+    // by adding Desugaring library available on Android SDK 21 as well
+    @SuppressLint("DefaultLocale")
+    public static byte[] getTimestamp4Bytes() {
+        LocalDateTime lt = LocalDateTime.now();
+        return String.format("%02d%02d", lt.getHour(), lt.getMinute()).getBytes(StandardCharsets.UTF_8);
     }
 }
