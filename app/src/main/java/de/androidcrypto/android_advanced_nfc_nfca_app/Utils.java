@@ -4,8 +4,6 @@ import android.annotation.SuppressLint;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.Calendar;
-import java.util.Date;
 
 /**
  * This class holds all helper methods for the app
