@@ -1,7 +1,7 @@
 # Android Advanced NFC NfcA App
 
 This app will explain in detail how the communication with an NFC tag works when using the **NfcA technology**. 
-The repository is the accompanying resource for a tutorial on medium.com available here: soon... 
+The repository is the accompanying resource for a tutorial on medium.com available here: https://medium.com/@androidcrypto/how-to-use-the-nfca-class-to-communicate-with-nfc-tags-in-android-java-ed33d186b5e3 
 
 Please be aware that this is an **advanced tutorial**, meaning I do not explain the details of Near Field 
 Communication (NFC). This is done in the tutorial "**How to use NFC Reader Mode in Android to connect to NFC tags (Java)**". 
