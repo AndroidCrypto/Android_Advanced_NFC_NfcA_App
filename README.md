@@ -1,6 +1,16 @@
 # Android Advanced NFC NfcA App
 
+This app will explain in detail how the communication with an NFC tag works when using the **NfcA technology**. 
+The repository is the accompanying resource for a tutorial on medium.com available here: soon... 
+
+Please be aware that this is an **advanced tutorial**, meaning I do not explain the details of Near Field 
+Communication (NFC). This is done in the tutorial "**How to use NFC Reader Mode in Android to connect to NFC tags (Java)**". 
+There is as well a GitHub repository available: https://github.com/AndroidCrypto/AndroidBasicNfcReader.
+
 ## data sheets of the described NFC tags
+For my work I used some well known and available on the market NFC tags. It is very important to understand 
+the technical fetures of each tag you want to work with, for that reason this are the links to the data sheets. 
+I included the last available versions in the "doc" subfolder of this repository.
 
 - NXP NTAG21x tags (NTAG213, NTAG215 and NTAG216): https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf
 - NTAG 21x features and hints (AN13089): https://www.puntoflotante.net/AN13089.pdf
@@ -42,7 +52,7 @@ tag has 50pF gives the value '0x02h'
 and the NTAG216 is returning '0x13h'
 - byte 07: protocol type: An NTAG21x tag returns '0x03h' as the tag is ISO/IEC 14443-3 compliant.
 
-Storage size explanations:
+**Storage size explanations**:
 
 The most significant 7 bits of the storage size byte are interpreted as a unsigned integer value n. 
 As a result, it codes the total available user memory size as 2n. If the least significant bit is 0b, 
@@ -142,16 +152,38 @@ chaining possibility.
 You retrieve the "receive buffer size" of your device with the simple NfcA call:
 `int maxTransceiveLength = nfcA.getMaxTransceiveLength();`
 
-For e.g., my Samsung device gives me a size 253 for the buffer, so I'm been able to **fastread around 60 pages** 
+For e.g., my Samsung device gives me a size 253 for the buffer, so I'm being able to **fast read around 60 pages** 
 in one run (60 pages * 4 bytes each = 240 bytes, this includes some protocol overhead bytes). Please 
-be aware that each device may have a different buffer size and you cannot rely on a static value !
+be aware that each device may have a different buffer size and you cannot rely on a static value I using !
 
 ### Write Command 0xA2h
 
+The WRITE command requires a block address, and writes 4 bytes of data into the addressed NTAG21x page.
 
+In the initial state of NTAG21x, the following memory pages are valid Addr parameters to the WRITE command.
+- page address 02h to 2Ch for NTAG213
+- page address 02h to 86h for NTAG215
+- page address 02h to E6h for NTAG216
+
+- Addressing a memory page beyond the limits above results in a NAK response from NTAG21x.
+Pages which are locked against writing cannot be reprogrammed using any write command. The locking 
+mechanisms include static and dynamic lock bits as well as the locking of the configuration pages.
+
+The following conditions apply if part of the memory is password protected for write access:
+- if NTAG21x is in the ACTIVE state: writing to a page which address is equal or higher than AUTH0 results in a NAK response
+- if NTAG21x is in the AUTHENTICATED state: the WRITE command behaves like on a NTAG21x without access protection NTAG21x features tearing protected write operations to specific memory content. The following pages are protected against tearing events during a WRITE operation:
+- page 02h containing static lock bits
+- page 03h containing CC bits
+- page 28h containing the additional dynamic lock bits for the NTAG213
+- page 82h containing the additional dynamic lock bits for the NTAG215
+- page E2h containing the additional dynamic lock bits for the NTAG216
 
 ### Compatibility Write Command 0xA0h
 
+As this command is for usage with older infrastructure I don't explain it any further:
+
+*The COMPATIBILITY_WRITE command is implemented to guarantee interoperability with the established 
+MIFARE Classic PCD infrastructure, in case of coexistence of ticketing and NFC applications.*
 
 ### Read Counter Command 0x39h
 
@@ -213,17 +245,17 @@ NTAG 424 offers the same features as 413 and more. Please check section 8.2 ...*
 NTAG 424 DNA and NTAG 424 DNA TagTamper features and hints (AN12196): https://www.nxp.com/docs/en/application-note/AN12196.pdf. 
 Note: this document explains on pages 50 to 51 the Elliptic Curve signature verification process
 
-Note: The NTAG 424 document shows **how to run the verification steps** but the NXP's Public Key is wrong !
+Note: The NTAG 424 document shows **how to run the verification steps** but the NXP's Public Key is 
+wrong for usage with NTAG21x or Ultralight EV1 tags !
 
 ```plaintext
+NTAG216 tag from NXP:
 UID length: 7 data: 04BE7982355B80
 readSignatureResponse length: 32 data: F2DE84A291222F6A04F663D48104D1F523DA00B9A951CC6126CE1BAA8A9E6A50
-Result of Originality Signature verification: true
 
 Fake NTAG213 tag:
 UID length: 7 data: 1D424AB9950000
 readSignatureResponse length: 32 data: 1D424A9DB99500001D424A9DB99500001D424A9DB99500001D424A9DB9950000
-Result of Originality Signature verification: false
 
 Second Fake NTAG213 tag:
 UID length: 7 data: 1DAC2BB9950000
@@ -232,10 +264,20 @@ UID length: 7 data:                    1DAC2BB9950000
                                                        1DAC2BB9950000
                                                                        1DAC2BB9950000
                                                                                        1DAC2BB9950000                        
-Result of Originality Signature verification: false
 ```
 
+### Signature
 
+```plaintext
+Fudan NTAG213 1 UID 1D424AB9950000
+readSignatureResponse length: 32 data: 1D424A9DB99500001D424A9DB99500001D424A9DB99500001D424A9DB9950000
+Fudan NTAG213 2 UID 1DAC2BB9950000
+readSignatureResponse length: 32 data: 1DAC2B12B99500001DAC2B12B99500001DAC2B12B99500001DAC2B12B9950000
+```
+
+## Screen after reading a tag
+
+![Screen of the Main](screenshot/small/app_home_01.png)
 
 ### Log file of reading pages 0-3, 4-7 and 8-11 with Read AuthProtection starting page 05 and without authentication
 
@@ -253,24 +295,17 @@ Read pages from page 08
 Could not read the content of the tag, maybe it is read protected ?
 Exception from operation: readPage for page 8 failed with IOException: Transceive failed
 --------------------
-
-
-
---------------------
 Read pages from page 04
 data from pages 4, 5, 6 and 7: 416E64721D424A9DB99500002CA30000
 AndrBJ���????,�????
 --------------------
-                                    
 This is the content of page 00 .. 03:
 ```plaintext
 --------------------
 Read pages from page 00
 data from pages 0, 1, 2 and 3: 1D424A9DB99500002CA30000E1101200
-
 BJ���????,�????�??
 --------------------
-
 This data was presented by the tag: 416E6472 1D424A9D B9950000 2CA30000
                                     page 04  page 05  page 06  page 07
 
@@ -280,7 +315,6 @@ This data was presented by the tag: 1D424A9D B9950000 2CA30000 E1101200
 As the tag is read protected from page 6 onwards it responds pages 04 + 05 
 with the real content and the content of "pages 06 + 07" is the data from 
 pages 00 + 01 due to the "roll over" management.                                    
-
 --------------------
 Read pages from page 08
 Could not read the content of the tag, maybe it is read protected ?
@@ -330,80 +364,6 @@ Full tag content length: 180 data: 1D424A9DB99500002CA30000E1101200416E64726F696
 ASCII content
 BJ���????,�????�??AndroidCrypto NFC NfcA Tutorial                ??get_reg3.php?uid1D424AB99500001&mac=371f46bc�????????????????????????????????????????????????????????????????????????????????????????????????????????????��??�??????????????????????
 --------------------
-```
-
-### NTAG ACK and NAK responses
-
-
-### ATQA and SAK responses
-
-
-### ASCII mirror function (NTAG21x only)
-
-NTAG21x features a ASCII mirror function. This function enables NTAG21x to virtually mirror
-- 7 byte UID (see Section 8.7.1) or
-- 3 byte NFC counter value (see Section 8.7.2) or
-- both, 7 byte UID and 3 byte NFC counter value with a separation byte (see Section 8.7.3)
-into the physical memory of the IC in ASCII code. On the READ or FAST READ command to the involved 
-user memory pages, NTAG21x will respond with the virtual memory content of the UID and/or NFC 
-counter value in ASCII code.
-
-The required length of the reserved physical memory for the mirror functions is specified in Table 12. 
-If the ASCII mirror exceeds the user memory area, the data will not be mirrored.
-
-```plaintext
-ASCII mirror       Required number of bytes in the physical memory
-UID mirror         14 bytes
-NFC counter        6 bytes
-UID + NFC counter  21 bytes (14 bytes for UID + 1 byte separation + 6 bytes NFC counter value)
-Table 12. Required memory space for ASCII mirror 
-```
-
-The position within the user memory where the mirroring of the UID and/or NFC counter shall start is 
-defined by the MIRROR_PAGE and MIRROR_BYTE values. The MIRROR_PAGE value defines the page where the 
-ASCII mirror shall start and the MIRROR_BYTE value defines the starting byte within the defined page.
-
-The ASCII mirror function is enabled with a MIRROR_PAGE value >03h.
-
-The MIRROR_CONF bits (see Table 9 and Table 11) define if ASCII mirror shall be enabled for the UID 
-and/or NFC counter. If both, the UID and NFC counter, are enabled for the ASCII mirror, the UID and 
-the NFC counter bytes are separated automatically with an “x” character (78h ASCII code).
-
-```plaintext
-Table 9. MIRROR configuration byte (Configuration Page 0, byte 0)
-Bit Explanation Default
-7:  MIRROR_CONF 00b     Defines which ASCII mirror shall be used, if the ASCII mirror is enabled by 
-                        a valid the MIRROR_PAGE byte
-                        00b : no ASCII mirror
-                        01b : UID ASCII mirror
-                        10b : NFC counter ASCII mirror
-                        11b : UID and NFC counter ASCII mirror
-6:  MIRROR_CONF 
-5:  MIRROR_BYTE 00b     The 2 bits define the byte position within the page defined by the MIRROR_PAGE 
-4:  MIRROR_BYTE         byte (beginning of ASCII mirror) (0, 1, 2 or 3 dec)
-3:  RFUI        -
-2:  STRG_MOD_EN 1b      STRG MOD_EN defines the modulation mode
-                        0b : strong modulation mode disabled
-                        1b : strong modulation mode enabled
-1:  RFUI        -
-0:  RFUI        -
-
-MIRROR_PAGE (Configuration Page 0, byte 2):
-Default value: 00h : MIRROR_Page defines the page for the beginning of the ASCII mirroring.
-                     A value >03h enables the ASCII mirror feature
-```
-
-Bote: If you set the NFC Read Counter mirror in MIRROR byte (Bit 7, MIRROR_CONF) you need to enable the NFC 
-Read Counter in the ACCESS byte (Bit 4, NFC_CNT_EN) or this value is not mirrored in the user memory ! 
-
-
-### Signature
-
-```plaintext
-Fudan NTAG213 1 UID 1D424AB9950000
-readSignatureResponse length: 32 data: 1D424A9DB99500001D424A9DB99500001D424A9DB99500001D424A9DB9950000
-Fudan NTAG213 2 UID 1DAC2BB9950000
-readSignatureResponse length: 32 data: 1DAC2B12B99500001DAC2B12B99500001DAC2B12B99500001DAC2B12B9950000
 ```
 
 ## NTAG213 complete Log File
@@ -636,343 +596,3 @@ This tag is not of type NTAG21x, MIFARE Ultralight EV or MIFARE Ultralight C. Th
 == Processing Ended ==
 ==============================
 ```
-
-# OLD DESCRIPTION
-
-This is a simple app showing how to detect and read some data from an NFC tag tapped to the Android's NFC reader.
-
-As there are a lot of questions on Stackoverflow.com that use an **Intent-based** NFC detection system I'm showing here how to use the more 
-modern **Reader Mode** for NFC communication.
-
-This is from an answer by *[Andrew](https://stackoverflow.com/users/2373819/andrew)* regarding the two modes:
-
-*Also note that using enableForegroundDispatch is actually not the best way to use NFC. Using enableReaderMode is a newer and much better API 
-to use. NFC.enableReaderMode does not use Intent's and gives you more control, it is easy to do NFC operations in a background Thread (which 
-is recommended), for writing to NFC Tag's it is much more reliable and leads to less errors.*
-
-There are 4 simples steps to **implement the Reader mode**:
-
-1) in `AndroidManifest.xml` add one line: `<uses-permission android:name="android.permission.NFC" />`
-2) in your activity or fragment expand your class definition by `implements NfcAdapter.ReaderCallback`
-3) create an `onTagDiscovered` method where all the work with the tag is done.
-4) create an `onResume` method to define the technologies and settings for the Reader Mode:
-
-```plaintext
-@Override                                                                                      
-protected void onResume() {                                                                    
-    super.onResume();                                                                          
-    if (myNfcAdapter != null) {                                                                
-        if (!myNfcAdapter.isEnabled())                                                         
-            showWirelessSettings();                                                            
-        Bundle options = new Bundle();                                                         
-        // Work around for some broken Nfc firmware implementations that poll the card too fast
-        options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250);                     
-        // Enable ReaderMode for all types of card and disable platform sounds                 
-        // The option NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK is NOT set                        
-        // to get the data of the tag after reading                                            
-        myNfcAdapter.enableReaderMode(this,                                                    
-                this,                                                                          
-                NfcAdapter.FLAG_READER_NFC_A |                                                 
-                        NfcAdapter.FLAG_READER_NFC_B |                                         
-                        NfcAdapter.FLAG_READER_NFC_F |                                         
-                        NfcAdapter.FLAG_READER_NFC_V |                                         
-                        NfcAdapter.FLAG_READER_NFC_BARCODE |                                   
-                        NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS,                             
-                options);                                                                      
-    }                                                                                          
-}                                                                                              
-```
-The flags are responsible for defining the NFC classes the NFC reader should detect. If you e.g. delete 
-the line `NfcAdapter.FLAG_READER_NFC_A` your app will not detect any NFC tags using the NfcA technology.  
-
-The last flag `NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS` is useful for a better user experience. Using 
-the **Intent based** mode a system sound will appear when the NFC tag is detected **at the beginning**. 
-This causes some uses to move the NFC tag out of the reader field and you receive a "Tag Lost Exception". 
-When using the **Reader Mode** the flag prohibits the device to give any feedback to the user. In my app 
-I'm running a short *beep* **at the end** or the reading process, signalizing that everything is done. 
-
-Note: **the `onTagDetected` method is not running on the User Interface (UI) thread**, so you are not allowed to write directly to any UI elements like 
-e.g. TextViews or Toasts - you need to encapsulate them in a `run onUiTHread` construct. This method is running in an background thread:
-```plaintext
-runOnUiThread(() -> {
-   Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
-});
-```
-
-## Steps to read an NFC tag using Reader Mode
-
-Here are some commands to get the first information's about the tag:
-
-`byte[] tagUid = tag.getId();`: receive the tag Unique Identifier (the length depending on tag type).
-`String[] techlist = tag.getTechList();`: this is very important as the **NFC tag informs us about the NFC technologies 
-it is been able to communicate** with us (e.g. *android.nfc.tech.NfcA*).
-
-Now it is time to **assign the received tag to an NFC technology class**, e.g. to the NDEF class. It is 
-important to double check that the ndef variable is not NULL to avoid any errors. If e.g. the ndef-var is not 
-null you can **connect** to the NFC tag. Always surround the tag operations with a *try.. catch* clause.
-
-### Example workflow for an NfcA type tag
-
-From the tag I'm getting the *ATQA* and *SAK* value - they are required to identify an NfcA tag on the first level. 
-The *maxTransceiveLength* is important when trying to read data from tag - if the data length including some 
-protocol bytes is extending this maximum you will receive an error from your device, as the maximum is the 
-size of your device's NFC reader unit.
-
-The next steps would be to send commands to the tag using the `transceive` method. I don't show any code for this 
-within the app as commands are tag specific.
-
-Please don't forget to close the NfcA class after your work is done. 
-
-```plaintext
-NfcA nfcA = null;                                                               
-nfcA = NfcA.get(tag);                                                           
-if (nfcA == null) {                                                             
-    output += "This tag is NOT supporting the NfcA class" + "\n";               
-    output += lineDivider + "\n";                                               
-} else {                                                                        
-    // I'm trying to get more information's about the tag and connect to the tag
-    byte[] atqa = nfcA.getAtqa();                                               
-    byte sak = (byte) nfcA.getSak();                                            
-    int maxTransceiveLength = nfcA.getMaxTransceiveLength();                    
-                                                                                
-    output += "-= NfcA Technology =-" + "\n";                                   
-    output += "ATQA: " + bytesToHex(atqa) + "\n";                               
-    output += "SAK: " + byteToHex(sak) + "\n";                                  
-    output += "maxTransceiveLength: " + maxTransceiveLength + "\n";             
-    output += lineDivider + "\n";                                               
-                                                                                
-    try {                                                                       
-        nfcA.connect();                                                         
-        output += "Connected to the tag using NfcA technology" + "\n";          
-        output += lineDivider + "\n";                                           
-        nfcA.close();                                                           
-    } catch (IOException e) {                                                   
-        output += "NfcA connect to tag IOException: " + e.getMessage() + "\n";  
-        output += lineDivider + "\n";                                           
-    }                                                                           
-}                                                                               
-```
-
-### Example workflow for an NDEF Message
-
-This example has a very limited NDEF workflow and just print out the raw NDEF data. Usually you will divide 
-the NDEF Message in separate NDEF records and work with the data depending on the NDEF Record type (not shown 
-in this app).
-
-Please don't forget to close the technology after reading is done.
-
-```plaintext
-Ndef ndef = null;                                                                                    
-ndef = Ndef.get(tag);                                                                                
-if (ndef == null) {                                                                                  
-    output += "This tag is NOT supporting the NDEF class" + "\n";                                    
-    output += lineDivider + "\n";                                                                    
-} else {                                                                                             
-    try {                                                                                            
-        ndef.connect();                                                                              
-        output += "Connected to the tag using NDEF technology" + "\n";                               
-        output += lineDivider + "\n";                                                                
-        NdefMessage ndefMessage = ndef.getNdefMessage();                                             
-        String ndefMessageString = ndefMessage.toString();                                           
-        byte[] ndefMessageBytes = ndefMessage.toByteArray();                                         
-        output += "NDEF message: " + ndefMessageString + "\n";                                       
-        if (ndefMessageBytes != null) {                                                              
-            output += "NDEF message: " + bytesToHex(ndefMessageBytes) + "\n";                        
-            output += "NDEF message: " + new String(ndefMessageBytes, StandardCharsets.UTF_8) + "\n";
-        }                                                                                            
-        output += lineDivider + "\n";                                                                
-        ndef.close();                                                                                
-    } catch (IOException e) {                                                                        
-        output += "NDEF connect to tag IOException: " + e.getMessage() + "\n";                       
-        output += lineDivider + "\n";                                                                
-    } catch (FormatException e) {                                                                    
-        output += "NDEF connect to tag RunTimeException: " + e.getMessage() + "\n";                  
-        output += lineDivider + "\n";                                                                
-    }                                                                                                
-}                                                                                                    
-```
-
-## Screen after reading a tag with an NDEF message
-
-![Screen of the Main](screenshot/small/app_home_01.png)
-
-## Example outputs for some tag types
-
-Below you find outputs for some tags with different technologies involved:
-
-### Example for an NTAG216 tag with NfcA technology:
-```plaintext
-NFC tag detected
-Tag UID length: 7 UID: 04be7982355b80
---------------------
-The TechList contains 3 entry/ies:
-Entry 0: android.nfc.tech.NfcA
-Entry 1: android.nfc.tech.MifareUltralight
-Entry 2: android.nfc.tech.NdefFormatable
---------------------
-TAG: Tech [android.nfc.tech.NfcA, android.nfc.tech.MifareUltralight, android.nfc.tech.NdefFormatable]
---------------------
--= NfcA Technology =-
-ATQA: 4400
-SAK: 00
-maxTransceiveLength: 253
---------------------
-Connected to the tag using NfcA technology
---------------------
-This tag is NOT supporting the NfcV class
---------------------
-This tag is NOT supporting the NDEF class
---------------------
-```
-
-### Example for an NTAG216 tag containing an NDEF message:
-```plaintext
-NFC tag detected
-Tag UID length: 7 UID: 04be7982355b80
---------------------
-The TechList contains 3 entry/ies:
-Entry 0: android.nfc.tech.NfcA
-Entry 1: android.nfc.tech.MifareUltralight
-Entry 2: android.nfc.tech.Ndef
---------------------
-TAG: Tech [android.nfc.tech.NfcA, android.nfc.tech.MifareUltralight, android.nfc.tech.Ndef]
---------------------
--= NfcA Technology =-
-ATQA: 4400
-SAK: 00
-maxTransceiveLength: 253
---------------------
-Connected to the tag using NfcA technology
---------------------
-This tag is NOT supporting the NfcV class
---------------------
-Connected to the tag using NDEF technology
---------------------
-NDEF message: NdefMessage [NdefRecord tnf=1 type=54 payload=02656E416E64726F696443727970746F]
-NDEF message: d101105402656e416e64726f696443727970746f
-NDEF message: enAndroidCrypto
-```
-
-### Example for a MIFARE Classic tag:
-```plaintext
-NFC tag detected
-Tag UID length: 4 UID: 641a35cf
---------------------
-The TechList contains 3 entry/ies:
-Entry 0: android.nfc.tech.NfcA
-Entry 1: android.nfc.tech.MifareClassic
-Entry 2: android.nfc.tech.NdefFormatable
---------------------
-TAG: Tech [android.nfc.tech.NfcA, android.nfc.tech.MifareClassic, android.nfc.tech.NdefFormatable]
---------------------
--= NfcA Technology =-
-ATQA: 0400
-SAK: 08
-maxTransceiveLength: 253
---------------------
-Connected to the tag using NfcA technology
---------------------
-This tag is NOT supporting the NfcV class
---------------------
-This tag is NOT supporting the NDEF class
---------------------
-```
-
-### Example for an NFC enabled Credit Card:
-```plaintext
-NFC tag detected
-Tag UID length: 4 UID: b58fcc6d
---------------------
-The TechList contains 2 entry/ies:
-Entry 0: android.nfc.tech.IsoDep
-Entry 1: android.nfc.tech.NfcA
---------------------
-TAG: Tech [android.nfc.tech.IsoDep, android.nfc.tech.NfcA]
---------------------
--= NfcA Technology =-
-ATQA: 0400
-SAK: 20
-maxTransceiveLength: 253
---------------------
-Connected to the tag using NfcA technology
---------------------
-This tag is NOT supporting the NfcV class
---------------------
-This tag is NOT supporting the NDEF class
---------------------
-```
-
-### Example for an ICODE SLIX tag with NfcV technology:
-```plaintext
-NFC tag detected
-Tag UID length: 8 UID: 18958608530104e0
---------------------
-The TechList contains 2 entry/ies:
-Entry 0: android.nfc.tech.NfcV
-Entry 1: android.nfc.tech.NdefFormatable
---------------------
-TAG: Tech [android.nfc.tech.NfcV, android.nfc.tech.NdefFormatable]
---------------------
-This tag is NOT supporting the NfcA class
---------------------
--= NfcV Technology =-
-DsfId: 00
-maxTransceiveLength: 253
---------------------
-Connected to the tag using NfcV technology
---------------------
-This tag is NOT supporting the NDEF class
---------------------
-```
-
-```plaintext
-/*
-Get Version data: 040101010016050401010104160500046D759AA47780B90C224D703722
-DESFire EV1 2K with 2048 bytes user memory
-hardwareVendorId: 4
-hardwareType: 1
-hardwareSubtype: 1
-Identification: MIFARE_DESFire on MIFARE native IC
-hardwareVersionMajor: 1
-hardwareVersionMinor: 0
-hardwareStorageSize: 22
-hardwareProtocol: 5
- */
-/*
-// Get Version data: 04010112001605040101020116050004464BDAD37580CF5B9665003521
-DESFire EV2 2K with 2048 bytes user memory
-hardwareVendorId: 4
-hardwareType: 1
-hardwareSubtype: 1
-Identification: MIFARE_DESFire on MIFARE native IC
-hardwareVersionMajor: 18
-hardwareVersionMinor: 0
-hardwareStorageSize: 22
-hardwareProtocol: 5
-*/
-/*
-Get Version data: 040101120018050401010201180500041858FA991190CF6C145D801222
-DESFire EV2 4K with 4048 bytes user memory
-hardwareVendorId: 4
-hardwareType: 1
-hardwareSubtype: 1
-Identification: MIFARE_DESFire on MIFARE native IC
-hardwareVersionMajor: 18
-hardwareVersionMinor: 0
-hardwareStorageSize: 24
-hardwareProtocol: 5
-*/
-/*
-Get Version data: 040101330016050401010300160500045E083250149020466430304822
-DESFire EV3 2K with 2048 bytes user memory
-hardwareVendorId: 4
-hardwareType: 1
-hardwareSubtype: 1
-Identification: MIFARE_DESFire on MIFARE native IC
-hardwareVersionMajor: 51
-hardwareVersionMinor: 0
-hardwareStorageSize: 22
-hardwareProtocol: 5
-*/
-```
-
