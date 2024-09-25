@@ -406,6 +406,237 @@ Fudan NTAG213 2 UID 1DAC2BB9950000
 readSignatureResponse length: 32 data: 1DAC2B12B99500001DAC2B12B99500001DAC2B12B99500001DAC2B12B9950000
 ```
 
+## NTAG213 complete Log File
+
+```plaintext
+==============================
+Android Advanced NFC NfcA App
+NFC tag detected
+Tag UID of the discovered tag
+UID length: 7 data: 1DAC2BB9950000
+------------------------------
+The TechList contains 1 entry/ies:
+Entry 0: android.nfc.tech.NfcA
+------------------------------
+TAG: Tech [android.nfc.tech.NfcA]
+------------------------------
+-= NfcA Technology data =-
+ATQA: 4400
+SAK: 00
+maxTransceiveLength: 253
+------------------------------
+Connected to the tag using NfcA technology
+==============================
+==== Tasks Overview ====
+= Get Version           true
+= Read Pages 0..3       true
+= Read Pages 4..7       true
+= FastRead Pages 00-12  true
+= Write Page 04         true
+= Wr. Bulk Data Page 05 true
+= Read Counter          true
+= Increase Counter 0    false
+= Read Signature        true
+= FastRead compl.Tag    true
+==== Tasks Overview End ====
+==============================
+GET VERSION data
+Run the GetVersion command and tries to identify the tag
+Get Version data: 0004040201000F03
+------------------------------
+Analyze the get version data
+Result of tag identification: true
+Version data dump (8 bytes)
+fixedHeader: 0
+hardwareVendorId: 4
+hardwareType: 4
+hardwareSubtype: 2
+Identification: NTAG_21x on MIFARE native IC
+hardwareVersionMajor: 1
+hardwareVersionMinor: 0
+hardwareStorageSize: 15
+hardwareProtocol: 3
+Free User Storage size: >128 bytes
+*** dump ended ***
+Tag is of type NTAG213 with 144 bytes user memory
+==============================
+Read pages from page 00
+Uses the READ command for accessing the content of the pages 0, 1, 2 and 3
+data from pages 0, 1, 2 and 3: 1DAC2B12B99500002CA30000E1101200
+ASCII: �+��????,�????�??
+==============================
+Read pages from page 04
+Uses the READ command for accessing the content of the pages 4, 5, 6 and 7
+data from pages 4, 5, 6 and 7: 31313533416E64726F69644372797074
+ASCII: 1153AndroidCrypt
+==============================
+FastRead pages from page 00 to 12
+Uses the FastRead command to read the content from pages 0 up to 12, in total 52 bytes.
+content pages 00-12 length: 52 
+data: 1DAC2B12B99500002CA30000E110120031313533416E64726F696443727970746F204E4643204E666341205475746F7269616C00
+------------------------------
+ASCII: 
+�+��????,�????�??1153AndroidCrypto NFC NfcA Tutorial??
+==============================
+Write on page 04
+Uses the WRITE command to write a 4 bytes long array to page 4
+dataToWrite on page 04 length: 4 data: 31313535
+writeToPage 04 response length: 1 data: 0A
+Check writeResponse: true
+Check writeResponse: ACK
+==============================
+Write bulk data on pages 05 ff
+Uses the WRITEBULKDATA method to write 31 bytes to the tag.
+writeBulkDataToPage 05 success: true
+==============================
+Read the Counter 2
+Uses the ReadCnt command to get value of the counter 2. On an NTAG21x with fabric settings this will fail as the counter is not enabled by default.
+readCounter 2 Response length: 0 data: IS NULL
+readCounter 2 Response: -1
+As value of -1 can indicate that the Read Counter is not enabled
+------------------------------
+Read Counter 0 + 1 is restricted to MIFARE Ultralight EV1 tags, skipped
+==============================
+Read the Signature
+Uses the ReadSig command and gets the 32 bytes long digital signature of the tag.
+readSignatureResponse length: 32 data: 1DAC2B12B99500001DAC2B12B99500001DAC2B12B99500001DAC2B12B9950000
+For verification the signature please read the docs.
+==============================
+FastRead pages from page 00-end
+Uses the FastRead command to read the full content of the tag.
+Full tag content length: 180 data: 1DAC2B12B99500002CA30000E110120031313535416E64726F696443727970746F204E4643204E666341205475746F7269616C00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000BD040000FF000000000000000000000000
+------------------------------
+ASCII:
+�+��????,�????�??1155AndroidCrypto NFC NfcA Tutorial????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????�????�????????????????????????
+ 
+== Processing Ended ==
+==============================
+```
+
+## MIFARE Ultralight C complete Log File
+```plaintext
+==============================
+Android Advanced NFC NfcA App
+NFC tag detected
+Tag UID of the discovered tag
+UID length: 7 data: 041F80AA987880
+------------------------------
+The TechList contains 3 entry/ies:
+Entry 0: android.nfc.tech.NfcA
+Entry 1: android.nfc.tech.MifareUltralight
+Entry 2: android.nfc.tech.NdefFormatable
+------------------------------
+TAG: Tech [android.nfc.tech.NfcA, android.nfc.tech.MifareUltralight, android.nfc.tech.NdefFormatable]
+------------------------------
+-= NfcA Technology data =-
+ATQA: 4400
+SAK: 00
+maxTransceiveLength: 253
+------------------------------
+Connected to the tag using NfcA technology
+==============================
+==== Tasks Overview ====
+= Get Version           true
+= Read Pages 0..3       true
+= Read Pages 4..7       true
+= FastRead Pages 00-12  true
+= Write Page 04         true
+= Wr. Bulk Data Page 05 true
+= Read Counter          true
+= Increase Counter 0    false
+= Read Signature        true
+= FastRead compl.Tag    true
+==== Tasks Overview End ====
+==============================
+GET VERSION data
+Run the GetVersion command and tries to identify the tag
+Could not read the version of the tag, maybe it is read protected or does not provide a Get Version command ?
+Exception from operation: Get Version failed with IOException: Transceive failed
+------------------------------
+Analyzing of the get version data skipped, using ATQA & SAK for tag identification
+Tag is probably of type Ultralight C with 144 bytes user memory
+==============================
+Read pages from page 00
+Uses the READ command for accessing the content of the pages 0, 1, 2 and 3
+data from pages 0, 1, 2 and 3: 041F8013AA987880CA48000000000000
+ASCII: ���x��H????????????
+==============================
+Read pages from page 04
+Uses the READ command for accessing the content of the pages 4, 5, 6 and 7
+data from pages 4, 5, 6 and 7: 31323135416E64726F69644372797074
+ASCII: 1215AndroidCrypt
+==============================
+FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped
+==============================
+Write on page 04
+Uses the WRITE command to write a 4 bytes long array to page 4
+dataToWrite on page 04 length: 4 data: 31323137
+writeToPage 04 response length: 1 data: 0A
+Check writeResponse: true
+Check writeResponse: ACK
+==============================
+Write bulk data on pages 05 ff
+Uses the WRITEBULKDATA method to write 31 bytes to the tag.
+writeBulkDataToPage 05 success: true
+==============================
+Read Counter is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped
+==============================
+Read Signature is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped
+==============================
+FastRead of the complete tag content skipped, tag has no FAST READ command
+ 
+== Processing Ended ==
+==============================
+```
+
+## Credit Card complete Log File
+```plaintext
+==============================
+Android Advanced NFC NfcA App
+NFC tag detected
+Tag UID of the discovered tag
+UID length: 4 data: 020155A0
+------------------------------
+The TechList contains 2 entry/ies:
+Entry 0: android.nfc.tech.IsoDep
+Entry 1: android.nfc.tech.NfcA
+------------------------------
+TAG: Tech [android.nfc.tech.IsoDep, android.nfc.tech.NfcA]
+------------------------------
+-= NfcA Technology data =-
+ATQA: 0400
+SAK: 20
+maxTransceiveLength: 253
+------------------------------
+Connected to the tag using NfcA technology
+==============================
+==== Tasks Overview ====
+= Get Version           true
+= Read Pages 0..3       true
+= Read Pages 4..7       true
+= FastRead Pages 00-12  true
+= Write Page 04         true
+= Wr. Bulk Data Page 05 true
+= Read Counter          true
+= Increase Counter 0    false
+= Read Signature        true
+= FastRead compl.Tag    true
+==== Tasks Overview End ====
+==============================
+GET VERSION data
+Run the GetVersion command and tries to identify the tag
+Could not read the version of the tag, maybe it is read protected or does not provide a Get Version command ?
+Exception from operation: Get Version failed with IOException: Tag was lost.
+------------------------------
+Analyzing of the get version data skipped, using ATQA & SAK for tag identification
+Tag is probably of type Assumed Credit Card with 0 bytes user memory
+==============================
+This tag is not of type NTAG21x, MIFARE Ultralight EV or MIFARE Ultralight C. The further tasks are skipped
+ 
+== Processing Ended ==
+==============================
+```
+
 # OLD DESCRIPTION
 
 This is a simple app showing how to detect and read some data from an NFC tag tapped to the Android's NFC reader.

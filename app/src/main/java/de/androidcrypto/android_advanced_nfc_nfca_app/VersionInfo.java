@@ -24,12 +24,15 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToLowerNi
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.byteToUpperNibbleInt;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.bytesToHexNpe;
 
+import android.util.Log;
+
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 
 
 public class VersionInfo {
+    private final String TAG = VersionInfo.class.getSimpleName();
     private int fixedHeader;
     private int hardwareVendorId;
     private int hardwareType;
@@ -80,14 +83,8 @@ public class VersionInfo {
      */
 
     public VersionInfo(byte[] bytes) throws IOException {
-        System.out.println("bytes length: " + bytes.length);
-        System.out.println("VersionInfo bytes: " + bytesToHexNpe(bytes));
-        /*
-        if(bytes.length < 7 + 7 + uid.length + batchNumber.length + 2) {
-            throw new IllegalArgumentException();
-        }
-
-         */
+        Log.d(TAG, "bytes length: " + bytes.length);
+        Log.d(TAG,"VersionInfo bytes: " + bytesToHexNpe(bytes));
 
         DataInputStream din = new DataInputStream(new ByteArrayInputStream(bytes));
         if (bytes.length == 8) {
@@ -170,15 +167,7 @@ public class VersionInfo {
     }
 
     public int getHardwareStorageSize() {
-        if((hardwareStorageSize & 1) > 0) {
-            // >
-        } else {
-            // =
-        }
-
-        return (int)Math.pow (2, hardwareStorageSize >> 1);
-
-        //return String.format("%s%d", ((hardwareStorageSize & 1) > 0 ? ">" : "="), (int)pow (2, hardwareStorageSize >> 1));
+         return (int)Math.pow (2, hardwareStorageSize >> 1);
     }
 
     public String getHardwareStorageSize8Bytes() {

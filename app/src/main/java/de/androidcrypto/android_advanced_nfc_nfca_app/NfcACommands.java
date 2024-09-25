@@ -512,6 +512,64 @@ public class NfcACommands {
         return null;
     }
 
+    // helper methods
+
+    public static boolean checkResponse(byte tagResponse) {
+        if (tagResponse == ACK) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public static String resolveCheckResponse(byte tagResponse) {
+        if (tagResponse == ACK) {
+            return "ACK";
+        } else if (tagResponse == NAK_INVALID_ARGUMENT) {
+            return "NAK INVALID ARGUMENT";
+        } else if (tagResponse == NAK_PARITY_CRC_ERROR) {
+            return "NAK PARITY OR CRC ERROR";
+        } else if (tagResponse == NAK_INVALID_AUTHENTICATION_COUNTER_OVERFLOW) {
+            return "NAK INVALID AUTHENTICATION COUNTER OVERFLOW";
+        } else if (tagResponse == NAK_EEPROM_WRITE_ERROR) {
+            return "NAK EEPROM WRITE ERROR";
+        } else if (tagResponse == NAK_IOEXCEPTION_ERROR) {
+            return "NAK IOEXCEPTION ERROR";
+        } else {
+            return "NAK UNKNOWN ERROR";
+        }
+    }
+
+    public static void reconnect(NfcA nfcA) {
+        Log.d(TAG, "Reconnect to NfcA class is best practise after (Tag Lost) exceptions.");
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return;
+        }
+        // this is just an advice - if an error occurs - close the connection and reconnect the tag
+        // https://stackoverflow.com/a/37047375/8166854
+        try {
+            nfcA.close();
+            Log.d(TAG, "Close NfcA");
+        } catch (Exception e) {
+            Log.e(TAG, "Exception on Close NfcA: " + e.getMessage());
+        }
+        try {
+            Log.d(TAG, "Reconnect NfcA");
+            nfcA.connect();
+        } catch (Exception e) {
+            Log.e(TAG, "Exception on Reconnect NfcA: " + e.getMessage());
+        }
+    }
+
+    /**
+     * The following methods are NOT for the Advanced project - DELETE them before publishing !
+     */
+
+
+
     /**
      * Set the ASCII Mirror feature of an NTAG21x tag. If both mirrorUidAscii and mirrorNfcCounter are
      * false the mirroring will be disabled
@@ -615,55 +673,7 @@ public class NfcACommands {
         }
     }
 
-    public static boolean checkResponse(byte tagResponse) {
-        if (tagResponse == ACK) {
-            return true;
-        } else {
-            return false;
-        }
-    }
 
-    public static String resolveCheckResponse(byte tagResponse) {
-        if (tagResponse == ACK) {
-            return "ACK";
-        } else if (tagResponse == NAK_INVALID_ARGUMENT) {
-            return "NAK INVALID ARGUMENT";
-        } else if (tagResponse == NAK_PARITY_CRC_ERROR) {
-            return "NAK PARITY OR CRC ERROR";
-        } else if (tagResponse == NAK_INVALID_AUTHENTICATION_COUNTER_OVERFLOW) {
-            return "NAK INVALID AUTHENTICATION COUNTER OVERFLOW";
-        } else if (tagResponse == NAK_EEPROM_WRITE_ERROR) {
-            return "NAK EEPROM WRITE ERROR";
-        } else if (tagResponse == NAK_IOEXCEPTION_ERROR) {
-            return "NAK IOEXCEPTION ERROR";
-        } else {
-            return "NAK UNKNOWN ERROR";
-        }
-    }
-
-    public static void reconnect(NfcA nfcA) {
-        Log.d(TAG, "Reconnect to NfcA class is best practise after (Tag Lost) exceptions.");
-        // sanity checks
-        if ((nfcA == null) || (!nfcA.isConnected())) {
-            Log.e(TAG, "nfcA is NULL or not connected, aborted");
-            lastExceptionString = "nfcA is NULL or not connected, aborted";
-            return;
-        }
-        // this is just an advice - if an error occurs - close the connection and reconnect the tag
-        // https://stackoverflow.com/a/37047375/8166854
-        try {
-            nfcA.close();
-            Log.d(TAG, "Close NfcA");
-        } catch (Exception e) {
-            Log.e(TAG, "Exception on Close NfcA: " + e.getMessage());
-        }
-        try {
-            Log.d(TAG, "Reconnect NfcA");
-            nfcA.connect();
-        } catch (Exception e) {
-            Log.e(TAG, "Exception on Reconnect NfcA: " + e.getMessage());
-        }
-    }
     // todo exclude from final release
 
     /**
@@ -1031,6 +1041,196 @@ public class NfcACommands {
     }
 
 
+    /**
+     * This method is for NTAG21x tags only - don't use it with other tag types as it uses absolute
+     * page numbers.
+     * Write the tags pages with data as on a tag with fabric settings as long as a page is writable
+     * The fabric settings are taken from the data sheet page 17 '8.5.6 Memory content at delivery'
+     * and pages 18 + 19 '8.5.7 Configuration pages' (default values)
+     * Not included pages are:
+     * pages 0 + 1: UID of the tag, read-only
+     * page 2: UID and Lock Bytes, read-only / OTP
+     * page 3: Capability Container, OTP
+     * page <end of user memory> + 1 (40/130/226): Dynamic Lock Bytes, OTP
+     * page <end of user memory> + 4 (43/133/229): Password (requires the Change PasswordPack method)
+     * page <end of user memory> + 5 (44/134/230): Pack (requires the Change PasswordPack method)
+     * Note: Run a successful authentication before to avoid any write access errors
+     * @param nfcA
+     * @param typeOfTag "NTAG213" / "NTAG215" / "NTAG216"
+     * @return true if all write operation are successful
+     */
+    public static boolean formatNtag21xToFactorySettings(NfcA nfcA, String typeOfTag) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return false;
+        }
+        byte[] page04Def;
+        byte[] page05Def;
+        byte[] pageEmpty;
+        byte[] page41Def;
+        byte[] page42Def;
+        byte[] page131Def;
+        byte[] page132Def;
+        byte[] page227Def;
+        byte[] page228Def;
+        boolean writeSuccess = true;
+        if (typeOfTag.equals("NTAG213")) {
+            page04Def = hexStringToByteArray("0103A00C");
+            page05Def = hexStringToByteArray("340300FE");
+            pageEmpty = hexStringToByteArray("00000000");
+            page41Def = hexStringToByteArray("040000FF");
+            page42Def = hexStringToByteArray("00000000");
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 4, page04Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 5, page05Def)[0]);
+            }
+            // empty the user memory
+            for (int i = 6; i < 40; i++) {
+                if (writeSuccess) {
+                    writeSuccess = checkResponse(writePage(nfcA, i, pageEmpty)[0]);
+                }
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 41, page41Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 42, page42Def)[0]);
+            }
+            return writeSuccess;
+        } else if (typeOfTag.equals("NTAG215")) {
+            page04Def = hexStringToByteArray("0300FE00");
+            page05Def = hexStringToByteArray("00000000");
+            pageEmpty = hexStringToByteArray("00000000");
+            page131Def = hexStringToByteArray("040000FF");
+            page132Def = hexStringToByteArray("00050000");
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 4, page04Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 5, page05Def)[0]);
+            }
+            // empty the user memory
+            for (int i = 6; i < 130; i++) {
+                if (writeSuccess) {
+                    writeSuccess = checkResponse(writePage(nfcA, i, pageEmpty)[0]);
+                }
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 131, page131Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 132, page132Def)[0]);
+            }
+            return writeSuccess;
+        } else if (typeOfTag.equals("NTAG216")) {
+            page04Def = hexStringToByteArray("0300FE00");
+            page05Def = hexStringToByteArray("00000000");
+            pageEmpty = hexStringToByteArray("00000000");
+            page227Def = hexStringToByteArray("040000FF");
+            page228Def = hexStringToByteArray("00050000");
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 4, page04Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 5, page05Def)[0]);
+            }
+            // empty the user memory
+            for (int i = 6; i < 226; i++) {
+                if (writeSuccess) {
+                    writeSuccess = checkResponse(writePage(nfcA, i, pageEmpty)[0]);
+                }
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 227, page227Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 228, page228Def)[0]);
+            }
+            return writeSuccess;
+        } else {
+            Log.e(TAG, "Unknown typeOfTag, aborted");
+            lastExceptionString = "Unknown typeOfTag, aborted";
+            return false;
+        }
+    }
+
+    /**
+     * This method is for MIFARE Ultralight EV1 tags only - don't use it with other tag types as it
+     * uses absolute page numbers.
+     * Write the tags pages with data as on a tag with fabric settings as long as a page is writable
+     * The fabric settings are taken from the data sheet page 14 '8.5.5 Data pages':
+     * 'The default content of the data blocks at delivery is not defined' - using empty bytes 0x00h
+     * and pages 14 + 15 '8.5.6 Configuration pages' (default values)
+     * Not included pages are:
+     * pages 0 + 1: UID of the tag, read-only
+     * page 2: UID and Lock Bytes, read-only / OTP
+     * page 3: One Time Programmable area, OTP
+     * page <end of user memory> + 1 (-/26): n/a / Lock Bytes, OTP
+     * page <end of user memory> + 3/4 (18/39): Password (requires the Change PasswordPack method)
+     * page <end of user memory> + 4/5 (19/40): Pack (requires the Change PasswordPack method)
+     * Note: Run a successful authentication before to avoid any write access errors
+     * @param nfcA
+     * @param typeOfTag "MF0UL11" / "MF0UL21"
+     * @return true if all write operation are successful
+     */
+    public static boolean formatUltralightEv1ToFactorySettings(NfcA nfcA, String typeOfTag) {
+        // sanity checks
+        if ((nfcA == null) || (!nfcA.isConnected())) {
+            Log.e(TAG, "nfcA is NULL or not connected, aborted");
+            lastExceptionString = "nfcA is NULL or not connected, aborted";
+            return false;
+        }
+        byte[] pageEmpty;
+        byte[] page16Def;
+        byte[] page17Def;
+        byte[] page37Def;
+        byte[] page38Def;
+        boolean writeSuccess = true;
+        if (typeOfTag.equals("MF0UL11")) {
+            pageEmpty = hexStringToByteArray("00000000");
+            page16Def = hexStringToByteArray("040000FF");
+            page17Def = hexStringToByteArray("00000000");
+            // empty the user memory
+            for (int i = 4; i < 16; i++) {
+                if (writeSuccess) {
+                    writeSuccess = checkResponse(writePage(nfcA, i, pageEmpty)[0]);
+                }
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 16, page16Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 17, page17Def)[0]);
+            }
+            return writeSuccess;
+        } else if (typeOfTag.equals("MF0UL21")) {
+            pageEmpty = hexStringToByteArray("00000000");
+            page37Def = hexStringToByteArray("040000FF");
+            page38Def = hexStringToByteArray("00050000");
+            // empty the user memory
+            for (int i = 4; i < 36; i++) {
+                if (writeSuccess) {
+                    writeSuccess = checkResponse(writePage(nfcA, i, pageEmpty)[0]);
+                }
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 37, page37Def)[0]);
+            }
+            if (writeSuccess) {
+                writeSuccess = checkResponse(writePage(nfcA, 38, page38Def)[0]);
+            }
+            return writeSuccess;
+        } else {
+            Log.e(TAG, "Unknown typeOfTag, aborted");
+            lastExceptionString = "Unknown typeOfTag, aborted";
+            return false;
+        }
+    }
+
     // todo exclude for final release
 
     // verify the NTAG21x Elliptic Curve Signature
@@ -1051,7 +1251,7 @@ public class NfcACommands {
         return signatureVerfied;
     }
 
-    // NDA
+    // NDA content
     // START code from NXP's AN11350 document (NTAG21x Originality Signature Validation)
     public static boolean checkEcdsaSignature(final String ecPubKey, final byte[] signature, final byte[] data) throws NoSuchAlgorithmException {
         final ECPublicKeySpec ecPubKeySpec = getEcPubKey(ecPubKey, getEcSecp128r1());

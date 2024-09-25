@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * This class takes all technical informations about a tag, taken from the Get Version command
+ * This class takes all technical information's about a tag, taken from the Get Version command
  * and other sources. The data is used define ranges e.g. for the free user memory on the tag.
  */
 public class TagInformation {
@@ -43,13 +43,8 @@ public class TagInformation {
     // following variables are used to restrict the sample app to a single tag type
     public boolean isTag_MIFARE_ULTRALIGHT_EV1 = false;
     public boolean isTag_NTAG21x = false;
+    public boolean isTag_NfcA_Library_Capable = false; // set on true if tag type is NTAG21x, Ultralight EV1 or Ultralight C
     VersionInfo tagVersionData;
-
-    public TagInformation(byte[] tagUid, byte[] atqa, byte sak) {
-        this.tagUid = tagUid;
-        this.atqa = atqa;
-        this.sak = sak;
-    }
 
     public TagInformation(byte[] tagUid, byte[] atqa, byte sak, int maxTransceiveLength, String[] technologies) {
         this.tagUid = tagUid;
@@ -117,6 +112,7 @@ public class TagInformation {
             tagHasPageLockBytes = true;
             tagHasOtpArea = true;
             numberOfCounter = 1;
+            isTag_NfcA_Library_Capable = true;
             Log.d(TAG, "Tag is of type " + tagMinorName + " with " + userMemory + " bytes user memory");
             return true;
         } else if (tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_Ultralight.toString())) {
@@ -154,6 +150,7 @@ public class TagInformation {
             tagHasPageLockBytes = true;
             tagHasOtpArea = true;
             numberOfCounter = 3;
+            isTag_NfcA_Library_Capable = true;
             Log.d(TAG, "Tag is of type " + tagMinorName + " with " + userMemory + " bytes user memory");
             return true;
         } else if (tagMajorName.equals(VersionInfo.MajorTagType.MIFARE_DESFire.toString())) {
@@ -258,7 +255,7 @@ public class TagInformation {
 
 
     // This method is called when the tag does not respond to a Get Version command
-// It uses some well known ATQA and SAK values to identify the tag, taken from the NXP Tag Identification document
+    // It uses some well known ATQA and SAK values to identify the tag, taken from the NXP Tag Identification document
     /*
       IMPORTANT NOTE: It is not advisable to use ATQA and SAK or any other protocol- related parameter to identify PICC's.
       If a system accepts or rejects PICC's based on protocol-related parameters rather than application-specific parameters
@@ -270,7 +267,7 @@ public class TagInformation {
         Log.d(TAG, "identifyTagOnAtqaSak() started");
         Log.d(TAG, printData("atqa", atqa));
         if ((Arrays.equals(atqa, hexStringToByteArray("4400")) && (sak == (byte) 0x00))) {
-            Log.d(TAG, "Ultralight Family identified");
+            Log.d(TAG, "MIFARE Ultralight Family identified");
             // Ultralight Family
             // assume it is an Ultralight C as the first Ultralight tag is no longer used
             tagMajorName = VersionInfo.MajorTagType.MIFARE_Ultralight.toString();
@@ -287,6 +284,7 @@ public class TagInformation {
             tagHasPageLockBytes = true;
             tagHasOtpArea = true;
             numberOfCounter = 1;
+            isTag_NfcA_Library_Capable = true;
             return true;
         } else if ((Arrays.equals(atqa, hexStringToByteArray("4403")) && (sak == (byte) 0x20))) {
             Log.d(TAG, "*** Found DESFire light ***");
@@ -373,37 +371,5 @@ public class TagInformation {
     public VersionInfo getTagVersionData() {
         return tagVersionData;
     }
-
-
-/*
-Ultralight Family
-
-NTAG21x
-ATQA: 4400
-SAK: 00
-
-DESFire EVx:
-ATQA: 4403
-SAK: 20
-
-DESFire light:
-ATQA: 4403
-SAK: 20
-in NfcA class does not run getCommand
-
-NTAG424DNA
-ATQA: 4403
-SAK: 20
-in NfcA class does not run getCommand
-
-GiroCard
-ATQA: 0800
-SAK: 20
-
-CreditCard + VPay Girocard
-ATQA: 0400
-SAK: 20
-
- */
 }
 

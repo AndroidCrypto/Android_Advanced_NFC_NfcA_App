@@ -33,7 +33,6 @@ import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.concatenateBy
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.getTimestamp4Bytes;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.hexStringToByteArray;
 import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.printData;
-import static de.androidcrypto.android_advanced_nfc_nfca_app.Utils.testBit;
 
 import android.content.Intent;
 import android.media.AudioManager;
@@ -56,7 +55,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class MainActivity extends AppCompatActivity implements NfcAdapter.ReaderCallback {
+public class MainActivity_Full extends AppCompatActivity implements NfcAdapter.ReaderCallback {
 
     private TextView textView;
     private NfcAdapter myNfcAdapter;
@@ -136,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runGetVersion = true; // don't skip this as we need the tag data for later working
                 boolean runReadPages03 = true;
                 boolean runReadPages47 = true;
-                boolean runFastRead0012 = true;
+                boolean runFastRead0011 = true;
                 boolean runWritePage04 = true;
                 boolean runWriteBulkDataPage05 = true;
                 boolean runReadCounter = true;
@@ -173,11 +172,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                 boolean runFormatTagToFabricSettings = false;
 
                 output += chapterDivider + "\n";
+                output += lineDivider + "\n";
                 output += "==== Tasks Overview ====" + "\n";
                 output += "= Get Version           " + runGetVersion + "\n";
                 output += "= Read Pages 0..3       " + runReadPages03 + "\n";
                 output += "= Read Pages 4..7       " + runReadPages47 + "\n";
-                output += "= FastRead Pages 00-12  " + runFastRead0012 + "\n";
+                output += "= FastRead Pages 00-11  " + runFastRead0011 + "\n";
                 //output += "= FastRead compl.Tag    " + runFastReadComplete + "\n";
                 output += "= Write Page 04         " + runWritePage04 + "\n";
                 output += "= Wr. Bulk Data Page 05 " + runWriteBulkDataPage05 + "\n";
@@ -309,249 +309,12 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         }
                     }
                 } else {
-                    output += "This tag is not of type NTAG21x, MIFARE Ultralight EV1 or MIFARE Ultralight C. The further processing is stopped.GetVersion command skipped. Without positive tag identification I can't work properly with the tag, aborted." + "\n";
+                    output += "GetVersion command skipped. Without positive tag identification I can't work properly with the tag, aborted." + "\n";
                     return;
                 }
 
-                if (!ti.isTag_NfcA_Library_Capable) {
-                    // this tag is not of type NTAG21x, MIFARE Ultralight EV1 or MIFARE Ultralight C tag type
-                    output += chapterDivider + "\n";
-                    output += "This tag is not of type NTAG21x, MIFARE Ultralight EV or MIFARE Ultralight C. The further tasks are skipped" + "\n";
-                } else {
 
-                    if (runReadPages03) {
-                        // read a page from the tag
-                        if (ti.userMemory > 16) {
-                            // restricted to NTAG21x and MIFARE Ultralight EV1
-                            //if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                            output += chapterDivider + "\n";
-                            if (ti.userMemory > 0) {
-                                output += "Read pages from page 00" + "\n";
-                                output += "Uses the READ command for accessing the content of the pages 0, 1, 2 and 3" + "\n";
-                                byte[] pagesData = readPage(nfcA, 00); // page 04 is the first page of the user memory
-                                boolean readSuccess = false;
-                                if (pagesData == null) {
-                                    output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
-                                    output += "Exception from operation: " + lastExceptionString + "\n";
-                                } else {
-                                    // we got a response but need to check the response data
-                                    // in case everything was ok we received the full content of 4 pages = 16 bytes
-                                    // in all other cases something went wrong, but those responses are tag type specific
-                                    if (pagesData.length == 16) {
-                                        output += "data from pages 0, 1, 2 and 3: " + bytesToHexNpe(pagesData) + "\n";
-                                        output += "ASCII: " + new String(pagesData, StandardCharsets.UTF_8) + "\n";
-                                        readSuccess = true;
-                                    } else {
-                                        output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
-                                        output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                                    }
-                                }
-                            } else {
-                                output += "The tag is not readable by the READ command, sorry." + "\n";
-                            }
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
-                        }
-                    }
 
-                    if (runReadPages47) {
-                        // read a page from the tag
-                        if (ti.userMemory > 16) {
-                            // restricted to NTAG21x and MIFARE Ultralight EV1
-                            //if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                            output += chapterDivider + "\n";
-                            if (ti.userMemory > 0) {
-                                output += "Read pages from page 04" + "\n";
-                                output += "Uses the READ command for accessing the content of the pages 4, 5, 6 and 7" + "\n";
-                                byte[] pagesData = readPage(nfcA, 4); // page 04 is the first page of the user memory
-                                boolean readSuccess = false;
-                                if (pagesData == null) {
-                                    output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
-                                    output += "Exception from operation: " + lastExceptionString + "\n";
-                                } else {
-                                    // we got a response but need to check the response data
-                                    // in case everything was ok we received the full content of 4 pages = 16 bytes
-                                    // in all other cases something went wrong, but those responses are tag type specific
-                                    if (pagesData.length == 16) {
-                                        output += "data from pages 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
-                                        output += "ASCII: " + new String(pagesData, StandardCharsets.UTF_8) + "\n";
-                                        readSuccess = true;
-                                    } else {
-                                        output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
-                                        output += "received response: " + bytesToHexNpe(pagesData) + "\n";
-                                    }
-                                }
-                            } else {
-                                output += "The tag is not readable by the READ command, sorry." + "\n";
-                            }
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
-                        }
-                    }
-
-                    if (runFastRead0012) {
-                        // fast read the pages 00-12 tag content
-                        // restricted to NTAG21x and MIFARE Ultralight EV1
-                        if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                            output += chapterDivider + "\n";
-                            if (ti.tagHasFastReadCommand) {
-                                output += "FastRead pages from page 00 to 12" + "\n";
-                                output += "Uses the FastRead command to read the content from pages 0 up to 12, in total 52 bytes." + "\n";
-                                int startPage = 0;
-                                int endPage = 12;
-                                byte[] contentRead = fastReadPage(nfcA, startPage, endPage);
-                                if ((contentRead != null) && (contentRead.length == (endPage - startPage + 1) * 4)) {
-                                    output += printData("content pages 00-12\n", contentRead) + "\n";
-                                    output += lineDivider + "\n";
-                                    output += "ASCII: " + "\n";
-                                    output += new String(contentRead, StandardCharsets.UTF_8) + "\n";
-                                } else {
-                                    output += "Error while reading the content in pages 00-12, e.g. some parts of the tag might be read protected" + "\n";
-
-                                }
-                            } else {
-                                output += "FastRead skipped, tag has no FAST READ command" + "\n";
-                            }
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
-                        }
-                    }
-
-                    if (runWritePage04) {
-                        output += chapterDivider + "\n";
-                        output += "Write on page 04" + "\n";
-                        output += "Uses the WRITE command to write a 4 bytes long array to page 4" + "\n";
-                        byte[] dataToWrite = getTimestamp4Bytes();
-                        output += printData("dataToWrite on page 04", dataToWrite) + "\n";
-                        byte[] writeResponse = writePage(nfcA, 4, dataToWrite);
-                        output += printData("writeToPage 04 response", writeResponse) + "\n";
-                        // I'm using byte 0 only for checking
-                        output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
-                        output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
-                    }
-
-                    if (runWriteBulkDataPage05) {
-                        output += chapterDivider + "\n";
-                        output += "Write bulk data on pages 05 ff" + "\n";
-                        output += "Uses the WRITEBULKDATA method to write 31 bytes to the tag." + "\n";
-                        byte[] bulkDataToWrite = "AndroidCrypto NFC NfcA Tutorial".getBytes(StandardCharsets.UTF_8);
-                        boolean writeBulkDataSuccess = writeBulkData(nfcA, 5, bulkDataToWrite);
-                        output += "writeBulkDataToPage 05 success: " + writeBulkDataSuccess + "\n";
-                    }
-
-                    if (runReadCounter) {
-                        // read the counter(s) from the tag
-                        // restricted to NTAG21x and MIFARE Ultralight EV1
-                        if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                            output += chapterDivider + "\n";
-                            output += "Read the Counter 2" + "\n";
-                            output += "Uses the ReadCnt command to get value of the counter 2. On an NTAG21x with fabric settings this will fail as the counter is not enabled by default." + "\n";
-                            byte[] readCounterResponse = readCounter(nfcA, 2);
-                            output += printData("readCounter 2 Response", readCounterResponse) + "\n";
-                            int readCounterResponseInt = readCounterInt(nfcA, 2);
-                            output += "readCounter 2 Response: " + readCounterResponseInt + "\n";
-                            if (readCounterResponseInt == -1) {
-                                output += "As value of -1 can indicate that the Read Counter is not enabled" + "\n";
-                            }
-                            // restricted to MIFARE Ultralight EV1
-                            if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
-                                output += lineDivider + "\n";
-                                output += "Read the Counter 0" + "\n";
-                                readCounterResponse = readCounter(nfcA, 0);
-                                output += printData("readCounter 0 Response", readCounterResponse) + "\n";
-                                readCounterResponseInt = readCounterInt(nfcA, 0);
-                                output += "readCounter 0 Response: " + readCounterResponseInt + "\n";
-                                output += lineDivider + "\n";
-                                output += "Read the Counter 1" + "\n";
-                                readCounterResponse = readCounter(nfcA, 1);
-                                output += printData("readCounter 1 Response", readCounterResponse) + "\n";
-                                readCounterResponseInt = readCounterInt(nfcA, 1);
-                                output += "readCounter 1 Response: " + readCounterResponseInt + "\n";
-                            } else {
-                                output += chapterDivider + "\n";
-                                output += "Read Counter 0 + 1 is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
-                            }
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "Read Counter is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
-                        }
-                    }
-
-                    if (runIncreaseCounter0) {
-                        // increases the counter 0 on the tag by 1
-                        // restricted to MIFARE Ultralight EV1
-                        if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
-                            output += chapterDivider + "\n";
-                            output += "Increase the Counter 0 by 1" + "\n";
-                            output += "Uses the INC_CNT command, available on MIFARE Ultralight EV1 tags only. It increase the counter 0 by 1" + "\n";
-                            byte[] increaseCounterResponse = increaseCounterByOne(nfcA, 0);
-                            if (checkResponse(increaseCounterResponse[0])) {
-                                output += "IncreaseCounter 0 Tag response is ACK -> Success" + "\n";
-                            } else {
-                                output += "IncreaseCounter 0 Tag response is NAK -> FAILURE" + "\n";
-                            }
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "Increase Counter is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
-                        }
-                    }
-
-                    if (runReadSignature) {
-                        // Read the Elliptic Curve Signature
-                        // restricted to NTAG21x and MIFARE Ultralight EV1
-                        if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                            // read a page from the tag
-                            output += chapterDivider + "\n";
-                            output += "Read the Signature" + "\n";
-                            output += "Uses the ReadSig command and gets the 32 bytes long digital signature of the tag." + "\n";
-                            byte[] readSignatureResponse = readSignature(nfcA);
-                            output += printData("readSignatureResponse", readSignatureResponse) + "\n";
-                            output += "For verification the signature please read the docs." + "\n";
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "Read Signature is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
-                        }
-                    }
-
-                    if (runFastReadComplete) {
-                        // fast read the complete tag content
-                        // restricted to NTAG21x and MIFARE Ultralight EV1
-                        if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
-                            output += chapterDivider + "\n";
-                            if (ti.tagHasFastReadCommand) {
-                                output += "FastRead pages from page 00-end" + "\n";
-                                output += "Uses the FastRead command to read the full content of the tag." + "\n";
-                                byte[] completeContentFastRead = readFullTag(nfcA, maxTransceiveLength, ti.tagMemoryEndPage);
-//                            System.out.println(printData("fastReadComplete\n", completeContentFastRead));
-                                if ((completeContentFastRead != null) && (completeContentFastRead.length == ((ti.tagMemoryEndPage + 1) * ti.bytesPerPage))) {
-                                    output += printData("Full tag content", completeContentFastRead) + "\n";
-                                    output += lineDivider + "\n";
-                                    output += "ASCII:" + "\n";
-                                    output += new String(completeContentFastRead, StandardCharsets.UTF_8) + "\n";
-                                } else {
-                                    output += "Error while reading the complete content of the tag, e.g. some parts of the tag might be read protected" + "\n";
-                                }
-                            }
-                        } else {
-                            output += chapterDivider + "\n";
-                            output += "FastRead of the complete tag content skipped, tag has no FAST READ command" + "\n";
-                        }
-                    } else {
-                        output += chapterDivider + "\n";
-                        output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
-                    }
-                }
-                output += " " + "\n";
-                output += "== Processing Ended ==" + "\n";
-                output += chapterDivider + "\n";
-
-                /**
-                 * METHODS NOT FOR RELEASE
-                 */
-/*
                 // todo remove from release
                 if (runAuthenticationDefault) {
                     // analyze the configuration
@@ -701,6 +464,7 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                                 output += "Configuration Pages are invalid, skipped" + "\n";
                             }
                         }
+
 
                         if (runEnableNfcReadCounter) {
                             if (ti.isTag_NTAG21x) {
@@ -857,8 +621,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 }
 
- */
-/* this is the full code including verification
                 if (runReadSignature) {
                     // Read the Elliptic Curve Signature
                     // restricted to NTAG21x and MIFARE Ultralight EV1
@@ -882,8 +644,132 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += "Read Signature is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
                     }
                 }
-*/
-/*
+
+                if (runReadCounter) {
+                    // read the counter(s) from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += chapterDivider + "\n";
+                        output += "Read the Counter 2" + "\n";
+                        output += "Uses the ReadCnt command to get value of the counter 2. On an NTAG21x with fabric settings this will fail as the counter is not enabled by default." + "\n";
+                        byte[] readCounterResponse = readCounter(nfcA, 2);
+                        output += printData("readCounter 2 Response", readCounterResponse) + "\n";
+                        int readCounterResponseInt = readCounterInt(nfcA, 2);
+                        output += "readCounter 2 Response: " + readCounterResponseInt + "\n";
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Counter is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+
+                    // restricted to MIFARE Ultralight EV1
+                    if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
+                        output += lineDivider + "\n";
+                        output += "Read the Counter 0" + "\n";
+                        byte[] readCounterResponse = readCounter(nfcA, 0);
+                        output += printData("readCounter 0 Response", readCounterResponse) + "\n";
+                        int readCounterResponseInt = readCounterInt(nfcA, 0);
+                        output += "readCounter 0 Response: " + readCounterResponseInt + "\n";
+                        output += lineDivider + "\n";
+                        output += "Read the Counter 1" + "\n";
+                        readCounterResponse = readCounter(nfcA, 1);
+                        output += printData("readCounter 1 Response", readCounterResponse) + "\n";
+                        readCounterResponseInt = readCounterInt(nfcA, 1);
+                        output += "readCounter 1 Response: " + readCounterResponseInt + "\n";
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Counter 0 + 1 is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runIncreaseCounter0) {
+                    // increases the counter 0 on the tag by 1
+                    // restricted to MIFARE Ultralight EV1
+                    if (ti.isTag_MIFARE_ULTRALIGHT_EV1) {
+                        output += chapterDivider + "\n";
+                        output += "Increase the Counter 0 by 1" + "\n";
+                        output += "Uses the INC_CNT command, available on MIFARE Ultralight EV1 tags only. It increase the counter 0 by 1" + "\n";
+                        byte[] increaseCounterResponse = increaseCounterByOne(nfcA, 0);
+                        if (checkResponse(increaseCounterResponse[0])) {
+                            output += "IncreaseCounter 0 Tag response is ACK -> Success" + "\n";
+                        } else {
+                            output += "IncreaseCounter 0 Tag response is NAK -> FAILURE" + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Increase Counter is restricted to MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadPages03) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += chapterDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read pages from page 00" + "\n";
+                            output += "Uses the READ command for accessing the content of the pages 0, 1, 2 and 3" + "\n";
+                            byte[] pagesData = readPage(nfcA, 00); // page 04 is the first page of the user memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from pages 0, 1, 2 and 3: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
+                if (runReadPages47) {
+                    // read a page from the tag
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += chapterDivider + "\n";
+                        if (ti.userMemory > 0) {
+                            output += "Read pages from page 04" + "\n";
+                            output += "Uses the READ command for accessing the content of the pages 4, 5, 6 and 7" + "\n";
+                            byte[] pagesData = readPage(nfcA, 4); // page 04 is the first page of the user memory
+                            boolean readSuccess = false;
+                            if (pagesData == null) {
+                                output += "Could not read the content of the tag, maybe it is read protected ?" + "\n";
+                                output += "Exception from operation: " + lastExceptionString + "\n";
+                            } else {
+                                // we got a response but need to check the response data
+                                // in case everything was ok we received the full content of 4 pages = 16 bytes
+                                // in all other cases something went wrong, but those responses are tag type specific
+                                if (pagesData.length == 16) {
+                                    output += "data from pages 4, 5, 6 and 7: " + bytesToHexNpe(pagesData) + "\n";
+                                    output += "\n" + new String(pagesData, StandardCharsets.UTF_8) + "\n";
+                                    readSuccess = true;
+                                } else {
+                                    output += "The tag responded with a response indicating that something went wrong. You need to read the data sheet of the tag to find out to read that tag, sorry." + "\n";
+                                    output += "received response: " + bytesToHexNpe(pagesData) + "\n";
+                                }
+                            }
+                        } else {
+                            output += "The tag is not readable by the READ command, sorry." + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "Read Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
                 if (runReadPages8b) {
                     // read a page from the tag
                     // restricted to NTAG21x and MIFARE Ultralight EV1
@@ -989,6 +875,35 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 }
 
+                if (runFastRead0011) {
+                    // fast read the pages 00-11 tag content
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += chapterDivider + "\n";
+                        if (ti.tagHasFastReadCommand) {
+                            output += "FastRead pages from page 00 to 11" + "\n";
+                            output += "Uses the FastRead command to read the content from pages 0 up to 11, in total 48 bytes." + "\n";
+                            int startPage = 0;
+                            int endPage = 11;
+                            byte[] contentRead = fastReadPage(nfcA, startPage, endPage);
+                            if ((contentRead != null) && (contentRead.length == (endPage - startPage + 1) * 4)) {
+                                output += printData("content pages 00-11\n", contentRead) + "\n";
+                                output += lineDivider + "\n";
+                                output += "ASCII content" + "\n";
+                                output += new String(contentRead, StandardCharsets.UTF_8) + "\n";
+                            } else {
+                                output += "Error while reading the content in pages 00-11, e.g. some parts of the tag might be read protected" + "\n";
+
+                            }
+                        } else {
+                            output += "FastRead skipped, tag has no command" + "\n";
+                        }
+                    } else {
+                        output += lineDivider + "\n";
+                        output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                    }
+                }
+
                 if (runFastRead0015) {
                     // fast read the pages 00-15 tag content
                     // restricted to NTAG21x and MIFARE Ultralight EV1
@@ -1017,9 +932,35 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                         output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
                     }
                 }
-*/
 
-                /*
+
+                if (runFastReadComplete) {
+                    // fast read the complete tag content
+                    // restricted to NTAG21x and MIFARE Ultralight EV1
+                    if ((ti.isTag_NTAG21x) || (ti.isTag_MIFARE_ULTRALIGHT_EV1)) {
+                        output += chapterDivider + "\n";
+                        if (ti.tagHasFastReadCommand) {
+                            output += "FastRead pages from page 00-end" + "\n";
+                            output += "Uses the FastRead command to read the full content of the tag." + "\n";
+                            byte[] completeContentFastRead = readFullTag(nfcA, maxTransceiveLength, ti.tagMemoryEndPage);
+//                            System.out.println(printData("fastReadComplete\n", completeContentFastRead));
+                            if ((completeContentFastRead != null) && (completeContentFastRead.length == ((ti.tagMemoryEndPage + 1) * ti.bytesPerPage))) {
+                                output += printData("Full tag content", completeContentFastRead) + "\n";
+                                output += lineDivider + "\n";
+                                output += "ASCII content" + "\n";
+                                output += new String(completeContentFastRead, StandardCharsets.UTF_8) + "\n";
+                            } else {
+                                output += "Error while reading the complete content of the tag, e.g. some parts of the tag might be read protected" + "\n";
+                            }
+                        }
+                    } else {
+                        output += "FastRead skipped, tag has no command" + "\n";
+                    }
+                } else {
+                    output += lineDivider + "\n";
+                    output += "FastRead Page is restricted to NTAG21x and MIFARE Ultralight EV1 tags, skipped" + "\n";
+                }
+
                 if (runWritePage04) {
                     output += chapterDivider + "\n";
                     output += "Write on page 04" + "\n";
@@ -1050,9 +991,16 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     output += "Check writeResponse: " + checkResponse(writeResponse[0]) + "\n";
                     output += "Check writeResponse: " + resolveCheckResponse(writeResponse[0]) + "\n";
                 }
-                */
 
-/*
+                if (runWriteBulkDataPage05) {
+                    output += chapterDivider + "\n";
+                    output += "Write bulk data on page 05" + "\n";
+                    output += "Uses the WRITEBULKDATA method to write around 30 bytes to the tag." + "\n";
+                    byte[] bulkDataToWrite = "AndroidCrypto NFC NfcA Tutorial".getBytes(StandardCharsets.UTF_8);
+                    boolean writeBulkDataSuccess = writeBulkData(nfcA, 4, bulkDataToWrite);
+                    output += "writeBulkDataToPage 05 success: " + writeBulkDataSuccess + "\n";
+                }
+
                 if (runFormatTagToFabricSettings) {
                     output += chapterDivider + "\n";
                     output += "Format the tag to Fabrics Settings" + "\n";
@@ -1069,7 +1017,6 @@ public class MainActivity extends AppCompatActivity implements NfcAdapter.Reader
                     }
                 }
                 output += lineDivider + "\n";
-*/
 
                 nfcA.close();
             } catch (IOException e) {
